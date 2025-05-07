@@ -2,6 +2,10 @@ local Constants = {
     -- PLACE
     VERSION = 1,
     DEBUG = false,
+
+    -- 
+    ToolScale = 1,
+
     
     -- PRIORITY LEVELS FOR CITO INITIALIZATION
     PRIORITY = {

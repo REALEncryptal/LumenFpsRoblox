@@ -1,11 +1,14 @@
 {
-  "name": "Cito",
+  "name": "Lumen",
   "tree": {
     "$className": "DataModel",
 
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "Packages": {
+        "$path": "Packages"
       }
     },
 
