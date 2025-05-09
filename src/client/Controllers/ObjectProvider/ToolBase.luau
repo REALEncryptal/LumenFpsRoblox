@@ -24,6 +24,7 @@ local Trove = shared.Import("trove")
 local Spring = shared.Import("Spring3")
 local Constants = shared.Import("Constants")
 local CharacterUtil = shared.Import("CharacterUtil")
+local CrosshairUtil = shared.Import("CrosshairUtil")
 
 function ToolBase.new( ToolFolder: Folder )
     assert(ToolFolder, "ToolBase.New - ToolFolder is nil")
@@ -64,7 +65,7 @@ function ToolBase.new( ToolFolder: Folder )
     end
 
     if self.Data.Crosshair then
-        self.Crosshair = self.Trove:Clone(ReplicatedStorage.Assets.Crosshair)
+        self.Crosshair = ReplicatedStorage.Assets.Crosshair:Clone()
         self.Crosshair.Parent = workspace.CurrentCamera
     end
     
@@ -183,8 +184,8 @@ function ToolBase.new( ToolFolder: Folder )
     end)
 
     -- Update camera cframe, seperated so children may add  
-    self:AddUpdateTask("UpdateCameraCFrame", 105, function(DeltaTime: number)
-        self.CameraCFrame = self.ViewmodelCFrame:ToObjectSpace(self.Viewmodel:FindFirstChild("CameraPart").CFrame)
+    self:AddUpdateTask("UpdateCameraCFrame", 102.5, function(DeltaTime: number)
+        self.CameraCFrame = self.Viewmodel:FindFirstChild("CameraPart").CFrame:ToObjectSpace(self.Viewmodel.PrimaryPart.CFrame)
     end)
 
     -- Set Camera
@@ -192,7 +193,11 @@ function ToolBase.new( ToolFolder: Folder )
         workspace.Camera.CFrame *= self.PreviousCameraCFrame:Inverse()
         
         if self.Crosshair then
-            self.Crosshair.Position = workspace.Camera.CFrame.Position + workspace.Camera.CFrame.LookVector * 100
+            self.Crosshair.Position = workspace.Camera.CFrame.Position + workspace.Camera.CFrame.LookVector * 5
+            self.Crosshair.CFrame = CFrame.lookAt(
+                self.Crosshair.Position,
+                workspace.Camera.CFrame.Position
+            )
         end
 
         workspace.Camera.CFrame *= self.CameraCFrame 

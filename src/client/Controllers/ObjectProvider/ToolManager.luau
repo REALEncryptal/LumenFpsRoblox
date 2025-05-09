@@ -7,6 +7,7 @@ local Net = shared.Import("net")
 
 local ToolBase = shared.Import("ToolBase")
 local Firearm = shared.Import("Firearm")
+local DebugController = shared.Import("DebugController")
 
 local ClassMap = {
     ToolBase = ToolBase,
@@ -32,6 +33,30 @@ function ToolManager.new( Character:Model )
            self.Tools[ToolName] = nil
        end
     end)
+
+    local Iris = DebugController.Iris
+    self.Trove:Add(Iris:Connect(function()
+        local windowSize = Iris.State(Vector2.new(300, 400))
+        Iris.Window({"Tool Manager"}, {size = windowSize})
+
+		Iris.Text({"Current Tools: " .. #self.Tools})
+
+        Iris.Indent()
+
+		for ToolName, ToolObject in pairs(self.Tools) do
+			Iris.Tree({"Tool: " .. ToolName .. " - " .. ToolObject.Data.Name})
+
+            Iris.Text({"Equipped: " .. (ToolObject.Equipped and "Yes" or "No")})
+            Iris.Text({"Swapping: " .. (ToolObject.Swapping and "Yes" or "No")})
+            
+
+            Iris.End()
+		end
+        
+        Iris.End() -- indent
+        
+	    Iris.End()
+    end))
     
     return self
 end

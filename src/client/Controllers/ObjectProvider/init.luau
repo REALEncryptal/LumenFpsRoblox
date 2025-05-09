@@ -10,7 +10,7 @@
 
 local Controller = { Objects = {} }
 
-Controller.Priority = 1
+Controller.Priority = 50
 
 function Controller:Init() 
     Controller:Load("ToolBase")
