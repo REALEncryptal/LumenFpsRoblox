@@ -45,10 +45,18 @@ function ToolManager.new( Character:Model )
 
 		for ToolName, ToolObject in pairs(self.Tools) do
 			Iris.Tree({"Tool: " .. ToolName .. " - " .. ToolObject.Data.Name})
-
-            Iris.Text({"Equipped: " .. (ToolObject.Equipped and "Yes" or "No")})
-            Iris.Text({"Swapping: " .. (ToolObject.Swapping and "Yes" or "No")})
             
+            if ToolObject.Data.HudImage then
+                Iris.Image({ToolObject.Data.HudImage,UDim2.new(.5,.1,.2,.1),nil,Enum.ScaleType.Fit})
+            end
+
+            local YesText = "<font color='rgb(0, 255, 0)'>Yes</font>"
+            local NoText = "<font color='rgb(255, 0, 0)'>No</font>"
+
+            Iris.Text({"Equipped: " .. (ToolObject.Equipped and YesText or NoText), nil, nil, true})
+            Iris.Text({"Swapping: " .. (ToolObject.Swapping and YesText or NoText), nil, nil, true})
+            
+            ToolObject:CreateDebug(Iris)
 
             Iris.End()
 		end

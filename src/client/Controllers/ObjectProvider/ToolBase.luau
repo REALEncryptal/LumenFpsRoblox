@@ -72,6 +72,9 @@ function ToolBase.new( ToolFolder: Folder )
     -- 
     self.Animations = {}
 
+    self.State = {} -- tool state
+    self.CharacterState = {} -- character state
+
     self.Offset = {
         Base = self.Data.Offsets.Base or CFrame.new(),
     }
@@ -102,7 +105,7 @@ function ToolBase.new( ToolFolder: Folder )
 
     -- Update Tasks
     self:AddUpdateTask("UpdateState", 100, function(DeltaTime: number)
-        self.State = {
+        self.CharacterState = {
             MoveDirection = CharacterUtil.GetMoveDirection(),
             WasGrounded = CharacterUtil.WasGrounded(),
             Grounded = CharacterUtil.IsGrounded(),
@@ -114,7 +117,7 @@ function ToolBase.new( ToolFolder: Folder )
     -- Shove Springs
     self:AddUpdateTask("ShoveSprings", 101, function(DeltaTime: number)
         -- Walk Spring
-        if self.State.MoveDirection.Magnitude > 0.1 and self.State.Grounded then
+        if self.CharacterState.MoveDirection.Magnitude > 0.1 and self.CharacterState.Grounded then
             local Magnitude = .0007
             local Speed = 15
             local Time = tick() * Speed
@@ -127,7 +130,7 @@ function ToolBase.new( ToolFolder: Folder )
         end
 
         -- in Air
-        if not self.State.Grounded then
+        if not self.CharacterState.Grounded then
             self.Springs.Air:Shove(Vector3.new(
                 0,
                 .001,
@@ -136,7 +139,7 @@ function ToolBase.new( ToolFolder: Folder )
         end
 
         -- Jump
-        if not self.State.Grounded and self.State.WasGrounded then
+        if not self.CharacterState.Grounded and self.CharacterState.WasGrounded then
             self.Springs.Air:Shove(Vector3.new(
                 0,
                 .005,
@@ -145,7 +148,7 @@ function ToolBase.new( ToolFolder: Folder )
         end
 
         -- Impact
-        if self.State.Grounded and not self.State.WasGrounded and self.State.Velocity.Y < -2 then
+        if self.CharacterState.Grounded and not self.CharacterState.WasGrounded and self.CharacterState.Velocity.Y < -2 then
             self.Springs.Impact:Shove(Vector3.new(
                 0,
                 -.015,
@@ -156,7 +159,7 @@ function ToolBase.new( ToolFolder: Folder )
         -- Sway Spring
         local Magnitude = .0001
 
-        self.Springs.Sway:Shove(Vector3.new(self.State.MouseDelta.X * Magnitude, -self.State.MouseDelta.Y * Magnitude, 0))
+        self.Springs.Sway:Shove(Vector3.new(self.CharacterState.MouseDelta.X * Magnitude, -self.CharacterState.MouseDelta.Y * Magnitude, 0))
     end)
 
     -- Update Springs
@@ -205,11 +208,13 @@ function ToolBase.new( ToolFolder: Folder )
     end)
 
     -- DEBUG
-    print(" New Tool: " .. self.Data.Name)  
     self:PrintTasks()
     
     return self
 end
+
+-- DEBUG
+function ToolBase:CreateDebug(Iris) end
 
 -- MAIN METHODS
 
