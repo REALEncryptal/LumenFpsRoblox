@@ -1,3 +1,4 @@
+local TweenService = game:GetService("TweenService")
 local InputUtil = shared.Import("InputUtil")
 local ToolBase = shared.Import("ToolBase")
 
@@ -19,8 +20,8 @@ function Firearm.new(ToolFolder: Folder)
 
         WishFire = false,
         WishADS = false,
-        ADSStart = tick(),
-        ADSEnd = tick(),
+        ADS = false,
+        ADSProgress = Instance.new("NumberValue"),
 
         LastShot = tick(),
         
@@ -32,18 +33,18 @@ function Firearm.new(ToolFolder: Folder)
         if aimPart then
             local aimOffset = self.Viewmodel.PrimaryPart.CFrame:ToObjectSpace(aimPart.CFrame * self.Offsets.Base):Inverse()
 
-            local position = aimOffset.Position
-            local rotation = aimOffset - position
+            --local position = aimOffset.Position
+            --local rotation = aimOffset - position
 
-            local t = math.abs(math.sin(tick()/2))
+            local t = 1-self.State.ADSProgress.Value
 
-            local newX = position.X * (1 - t)
-            local newY = position.Y * (1 - t)^2
+            --local newX = position.X * (1 - t)
+            --local newY = position.Y * (1 - t)^2
 
-            local newPosition = Vector3.new(newX, newY, position.Z)
-            local interpolatedCFrame = CFrame.new(newPosition) * rotation
+            --local newPosition = Vector3.new(newX, newY, position.Z)
+            --local interpolatedCFrame = CFrame.new(newPosition) * rotation
 
-            self.ViewmodelCFrame *= interpolatedCFrame
+            self.ViewmodelCFrame *= aimOffset:Lerp(CFrame.new(), t)
         end
     end)
 
@@ -59,7 +60,16 @@ function Firearm.new(ToolFolder: Folder)
     end, false, Enum.UserInputType.MouseButton1)
 
     InputUtil:BindAction("ADS", function(_, InputState)
+        local WasWishADS = self.State.WishADS
         self.State.WishADS = InputState == Enum.UserInputState.Begin
+
+        if WasWishADS ~= self.State.WishADS then
+            if self.State.WishADS then
+                self:StartADS()
+            else
+                self:EndADS()
+            end
+        end
     end, false, Enum.UserInputType.MouseButton2)
 
     -- Create trove cleanup
@@ -83,12 +93,6 @@ function Firearm.new(ToolFolder: Folder)
         if not self.State.WishFire then return end
 
         self:WishFire()
-    end)
-
-    self:AddUpdateTask("UpdateADS", 105, function(DeltaTime: number)
-        if not self.State.WishADS then return end
-
-        self:WishADS()
     end)
 
     return self
@@ -144,12 +148,12 @@ function Firearm:Reload()
     self.State.StoredAmmo = self.State.StoredAmmo - AmmoToAdd
 end
 
-function Firearm:WishADS()
-    if not self:CanAction() then return end
+function Firearm:StartADS()
+    TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 1}):Play()
 end
 
 function Firearm:EndADS()
-    self.State.ADSEnd = tick()
+    TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 0}):Play()
 end
 
 function Firearm:CanFire()
