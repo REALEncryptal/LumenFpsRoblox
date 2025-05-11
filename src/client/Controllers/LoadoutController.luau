@@ -1,6 +1,6 @@
 local Controller = {Signals={}} 
 
-Controller.Priority = 55
+Controller.Priority = 70
 
 local ToolManager
 

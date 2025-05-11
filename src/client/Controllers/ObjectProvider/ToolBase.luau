@@ -20,11 +20,12 @@ ToolBase.__index = ToolBase
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 local Trove = shared.Import("trove")
 local Spring = shared.Import("Spring3")
 local Constants = shared.Import("Constants")
 local CharacterUtil = shared.Import("CharacterUtil")
-local CrosshairUtil = shared.Import("CrosshairUtil")
+local TweenUtil = shared.Import("TweenUtil")
 
 function ToolBase.new( ToolFolder: Folder )
     assert(ToolFolder, "ToolBase.New - ToolFolder is nil")
@@ -32,6 +33,7 @@ function ToolBase.new( ToolFolder: Folder )
     assert(ToolFolder:IsA("Folder"), "ToolBase.New - ToolFolder is not a Folder")
     
     local self = setmetatable({}, ToolBase)
+    self.Type = "ToolBase"
 
     self.Data = require(ToolFolder:FindFirstChildOfClass("ModuleScript"))
 
@@ -67,6 +69,9 @@ function ToolBase.new( ToolFolder: Folder )
     if self.Data.Crosshair then
         self.Crosshair = ReplicatedStorage.Assets.Crosshair:Clone()
         self.Crosshair.Parent = workspace.CurrentCamera
+
+        self.HideCrosshair = TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, 1, .2)
+        self.ShowCrosshair = TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, nil, .2)
     end
     
     -- 
@@ -75,13 +80,14 @@ function ToolBase.new( ToolFolder: Folder )
     self.State = {} -- tool state
     self.CharacterState = {} -- character state
 
-    self.Offset = {
+    self.Offsets = {
         Base = self.Data.Offsets.Base or CFrame.new(),
+        Hidden = CFrame.new(),
     }
 
     self.Springs = {
         Idle = Spring.new(),
-        Sway = Spring.new(),
+        Sway = Spring.new(5, 50, 5, 4), -- mass, force, damping, speed
         Walk = Spring.new(),
         Run = Spring.new(),
         Air = Spring.new(),
@@ -90,6 +96,9 @@ function ToolBase.new( ToolFolder: Folder )
 
     self.Equipped = false
     self.Swapping = false
+    self.Equipping = false
+    self.Unequipping = false
+    
     self.ViewmodelCFrame = CFrame.new()
     self.CameraCFrame = workspace.CurrentCamera.CFrame
     self.PreviousCameraCFrame = workspace.CurrentCamera.CFrame
@@ -118,7 +127,7 @@ function ToolBase.new( ToolFolder: Folder )
     self:AddUpdateTask("ShoveSprings", 101, function(DeltaTime: number)
         -- Walk Spring
         if self.CharacterState.MoveDirection.Magnitude > 0.1 and self.CharacterState.Grounded then
-            local Magnitude = .0007
+            local Magnitude = .05
             local Speed = 15
             local Time = tick() * Speed
 
@@ -126,59 +135,71 @@ function ToolBase.new( ToolFolder: Folder )
                 math.cos(Time/2) * Magnitude * .7,
                 math.sin(Time) * Magnitude,
                 0
-            ))
+            )*DeltaTime)
         end
 
         -- in Air
         if not self.CharacterState.Grounded then
             self.Springs.Air:Shove(Vector3.new(
                 0,
-                .001,
+                .1,
                 0
-            ))
+            )*DeltaTime)
         end
 
         -- Jump
         if not self.CharacterState.Grounded and self.CharacterState.WasGrounded then
             self.Springs.Air:Shove(Vector3.new(
                 0,
-                .005,
+                .5,
                 0
-            ))
+            )*DeltaTime)
         end
 
         -- Impact
         if self.CharacterState.Grounded and not self.CharacterState.WasGrounded and self.CharacterState.Velocity.Y < -2 then
             self.Springs.Impact:Shove(Vector3.new(
                 0,
-                -.015,
+                -5,
                 0
-            ))
+            )*DeltaTime)
         end
 
         -- Sway Spring
-        local Magnitude = .0001
+        local Magnitude = .05
 
-        self.Springs.Sway:Shove(Vector3.new(self.CharacterState.MouseDelta.X * Magnitude, -self.CharacterState.MouseDelta.Y * Magnitude, 0))
+        self.Springs.Sway:Shove(Vector3.new(self.CharacterState.MouseDelta.X * Magnitude, self.CharacterState.MouseDelta.Y * Magnitude, self.CharacterState.MouseDelta.X * Magnitude*.1)*DeltaTime)
     end)
 
     -- Update Springs
     self:AddUpdateTask("UpdateSprings", 102, function(DeltaTime: number)
         self.UpdatedSprings = {}
         for SpringName, Spring in pairs(self.Springs) do
-            self.UpdatedSprings[SpringName] = Spring:Update(DeltaTime)
+            self.UpdatedSprings[SpringName] = Spring:Update(DeltaTime) 
         end
     end)
 
     -- Update viewmodel cframe
+    -- Update viewmodel cframe
     self:AddUpdateTask("UpdateViewmodelCFrame", 103, function(DeltaTime: number)
         self.ViewmodelCFrame = CFrame.new()
         self.ViewmodelCFrame *= workspace.CurrentCamera.CFrame
-        self.ViewmodelCFrame *= self.Offset.Base
-        self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Walk * self.Viewmodel:GetScale())
-        self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Sway * self.Viewmodel:GetScale() * .5) * CFrame.Angles(math.rad(self.UpdatedSprings.Sway.X *-5), math.rad(self.UpdatedSprings.Sway.Y *-5), 0)
+        self.ViewmodelCFrame *= self.Offsets.Base
+        self.ViewmodelCFrame *= self.Offsets.Hidden
+        self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Walk * self.Viewmodel:GetScale() * .2)
+        self.ViewmodelCFrame *= CFrame.Angles(
+            math.rad(self.UpdatedSprings.Walk.Y * 15),
+            math.rad(-self.UpdatedSprings.Walk.X * 15),
+            0
+        )
+        self.ViewmodelCFrame *= CFrame.new(-self.UpdatedSprings.Sway * self.Viewmodel:GetScale() * .5) * CFrame.Angles(math.rad(self.UpdatedSprings.Sway.Y *5), math.rad(-self.UpdatedSprings.Sway.X *5), 0)
         self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Air * self.Viewmodel:GetScale())
-        self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Impact * self.Viewmodel:GetScale())
+        self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Impact * self.Viewmodel:GetScale() * .3)
+        self.ViewmodelCFrame *= CFrame.Angles(
+            math.rad(self.UpdatedSprings.Impact.Y * 25),
+            0,
+            0
+        )
     end)
 
     -- Set Viewmodel
@@ -189,10 +210,22 @@ function ToolBase.new( ToolFolder: Folder )
     -- Update camera cframe, seperated so children may add  
     self:AddUpdateTask("UpdateCameraCFrame", 102.5, function(DeltaTime: number)
         self.CameraCFrame = self.Viewmodel:FindFirstChild("CameraPart").CFrame:ToObjectSpace(self.Viewmodel.PrimaryPart.CFrame)
+        self.CameraCFrame *= CFrame.Angles(
+            math.rad(self.UpdatedSprings.Impact.Y * 2),
+            0,
+            0
+        ) 
+
+        self.CameraCFrame *= CFrame.Angles(
+            math.rad(self.UpdatedSprings.Walk.Y * -2),
+            math.rad(-self.UpdatedSprings.Walk.X * -2),
+            0
+        )
     end)
 
     -- Set Camera
     self:AddUpdateTask("Update", 106, function(DeltaTime: number)
+        if not self.Equipped and not self.Swapping then return end
         workspace.Camera.CFrame *= self.PreviousCameraCFrame:Inverse()
         
         if self.Crosshair then
@@ -203,8 +236,15 @@ function ToolBase.new( ToolFolder: Folder )
             )
         end
 
-        workspace.Camera.CFrame *= self.CameraCFrame 
+        workspace.Camera.CFrame *= self.CameraCFrame
         self.PreviousCameraCFrame = self.CameraCFrame
+    end)
+
+    -- Trove cleanup
+    self.Trove:Add(function()
+        if self.SwapCoroutine then
+            task.cancel(self.SwapCoroutine)
+        end
     end)
 
     -- DEBUG
@@ -221,8 +261,68 @@ function ToolBase:CreateDebug(Iris) end
 function ToolBase:Activate() end
 function ToolBase:AltActivate() end
 
-function ToolBase:Equip() end
-function ToolBase:Unequip() end
+function ToolBase:Equip() 
+    if self.Equipping then return end
+
+    self.Equipping = true
+    self.Swapping = true
+    task.spawn(function()
+        self.Animations.Equip:AdjustWeight(0)
+        self.Animations.Equip:Play(0)
+        
+        task.wait(.01)
+
+        self.Offsets.Hidden = CFrame.new()
+    end)
+
+    if self.SwapCoroutine then
+        task.cancel(self.SwapCoroutine)
+    end
+
+    self.ShowCrosshair:Play()
+
+
+    self:StartEquip()
+
+    self.SwapCoroutine = task.delay(self.Data.SwapTime or 0, function()
+        self.Swapping = false
+        self.Equipped = true
+        self.Equipping = false
+
+        self:EndEquip()
+    end)
+end
+function ToolBase:Unequip() 
+    if self.Unequipping then return end
+
+    self.Animations.Unequip:Play()
+    self.Unequipping = true
+    self.Swapping = true
+
+    if self.SwapCoroutine then
+        task.cancel(self.SwapCoroutine) 
+    end
+
+    self.HideCrosshair:Play()
+
+    self:StartUnequip()
+
+    self.SwapCoroutine = task.delay(self.Data.SwapTime or 0, function()
+        self.Swapping = false
+        self.Equipped = false
+        self.Unequipping = false
+
+        
+        self.Offsets.Hidden = CFrame.new(0, -10, 0)
+
+        self:EndUnequip()
+    end)
+end
+
+function ToolBase:StartUnequip() end
+function ToolBase:EndUnequip() end
+function ToolBase:StartEquip() end
+function ToolBase:EndEquip() end
 
 -- run update tasks
 function ToolBase:Update(DeltaTime: number) 

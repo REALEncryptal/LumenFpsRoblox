@@ -13,10 +13,14 @@ local CharacterUtil = {
 }
 
 -- middleware
-function CharacterUtil.RequireCharacter(func: (Character: Model, ...any) -> any)
+function CharacterUtil.RequireCharacter(func: (Character: Model, ...any) -> any, ...: string)
     return function(...)
         local Character = CharacterUtil.GetCharacter()
         if not Character then return end
+        
+        for _, PartName in {...} do
+            if not Character:FindFirstChild(PartName) then return end
+        end
         
         return func(Character, ...)
     end
@@ -30,27 +34,27 @@ end
 -- middleware methods
 CharacterUtil.GetMoveDirection = CharacterUtil.RequireCharacter(function(Character: Model): Vector3
     return Character.Humanoid.MoveDirection or Vector3.new()
-end)
+end, "Humanoid")
 
 CharacterUtil.GetVelocity = CharacterUtil.RequireCharacter(function(Character: Model): Vector3
     return Character.PrimaryPart.AssemblyLinearVelocity or Vector3.new()
-end)
+end, "PrimaryPart")
 
 CharacterUtil.GetMoveSpeed = CharacterUtil.RequireCharacter(function(Character: Model): number
     return Character.PrimaryPart.AssemblyLinearVelocity.Magnitude or 0
-end)
+end, "PrimaryPart")
 
 CharacterUtil.IsGrounded = CharacterUtil.RequireCharacter(function(Character: Model): boolean
     CharacterUtil._Grounded = Character.Humanoid.FloorMaterial ~= Enum.Material.Air or false
     return CharacterUtil._Grounded
-end)
+end, "Humanoid")
 
 CharacterUtil.WasGrounded = CharacterUtil.RequireCharacter(function(Character: Model): boolean
     return CharacterUtil._Grounded
-end)
+end, "Humanoid")
 
 CharacterUtil.IsJumping = CharacterUtil.RequireCharacter(function(Character: Model): boolean
     return Character.Humanoid.Jump or false
-end)
+end, "Humanoid")
 
 return CharacterUtil

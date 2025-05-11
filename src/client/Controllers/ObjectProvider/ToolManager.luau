@@ -8,6 +8,7 @@ local Net = shared.Import("net")
 local ToolBase = shared.Import("ToolBase")
 local Firearm = shared.Import("Firearm")
 local DebugController = shared.Import("DebugController")
+local InterfaceController = shared.Import("InterfaceController")
 
 local ClassMap = {
     ToolBase = ToolBase,
@@ -45,6 +46,14 @@ function ToolManager.new( Character:Model )
 
 		for ToolName, ToolObject in pairs(self.Tools) do
 			Iris.Tree({"Tool: " .. ToolName .. " - " .. ToolObject.Data.Name})
+
+            if Iris.Button({ToolObject.Equipped and "Unequip" or "Equip"}).clicked() then
+                if ToolObject.Equipped then
+                    self:UnequipTool(ToolName)
+                else
+                    self:EquipTool(ToolName)
+                end
+            end
             
             if ToolObject.Data.HudImage then
                 Iris.Image({ToolObject.Data.HudImage,UDim2.new(.5,.1,.2,.1),nil,Enum.ScaleType.Fit})
@@ -55,6 +64,12 @@ function ToolManager.new( Character:Model )
 
             Iris.Text({"Equipped: " .. (ToolObject.Equipped and YesText or NoText), nil, nil, true})
             Iris.Text({"Swapping: " .. (ToolObject.Swapping and YesText or NoText), nil, nil, true})
+
+            if ToolObject.Swapping then
+                Iris.Indent()
+                Iris.Text({"Swap To: " .. (ToolObject.Equipping and "Equipping" or "Unequipping")})
+                Iris.End()
+            end
             
             ToolObject:CreateDebug(Iris)
 
@@ -97,6 +112,7 @@ function ToolManager:EquipTool( ToolName:string )
     if not ToolObject then return end
 
     ToolObject:Equip()
+    InterfaceController.WeaponUI.ToolObject = ToolObject
 end
 
 function ToolManager:UnequipTool( ToolName:string )
@@ -105,6 +121,21 @@ function ToolManager:UnequipTool( ToolName:string )
     if not ToolObject then return end
 
     ToolObject:Unequip()
+    InterfaceController.WeaponUI.ToolObject = nil
+end
+
+function ToolManager:UnequipAllTools()
+    for _, ToolObject in pairs(self.Tools) do
+        if not ToolObject then continue end
+        ToolObject:Unequip()
+    end
+end
+
+function ToolManager:SwapTool( NewToolName:string )
+    if not self.Tools[NewToolName] then return end
+    
+    self:UnequipAllTools()
+    self:EquipTool(NewToolName)
 end
 
 function ToolManager:Update( DeltaTime: number )

@@ -300,7 +300,9 @@ function Cito:Init()
 		if module._Cito and module._Cito._Initialized then
 			continue
 		end
-		
+
+		if module._Raw then continue end
+			
 		module._Cito._Initialized = true
 		module._Cito._InitTime = tick()
 		
