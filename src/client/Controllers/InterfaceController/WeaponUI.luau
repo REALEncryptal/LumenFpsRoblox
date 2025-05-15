@@ -1,3 +1,4 @@
+local TweenService = game:GetService("TweenService")
 --[[
 
     WeaponUI
@@ -12,14 +13,26 @@ local WeaponUI = {
     _Raw = true -- this is not a controller, DO NOT INIT
 }
 
-local Controller
+local Controller, TweenUtil
 
 function WeaponUI:Init(InterfaceController)
     Controller = InterfaceController
+    TweenUtil = shared.Import("TweenUtil")
 
     WeaponUI.ToolObject = nil
     WeaponUI.Instance = Controller.Instance:WaitForChild("LoadoutInfo")
 
+    WeaponUI.Show = TweenUtil.CreateTransparencyTween(
+        WeaponUI.Instance,
+        nil,
+        .2
+    )
+    WeaponUI.Hide = TweenUtil.CreateTransparencyTween(
+        WeaponUI.Instance,
+        1,
+        .2
+    )
+    
     return WeaponUI
 end
 
@@ -44,15 +57,21 @@ function WeaponUI:WatchTool(ToolObject: any?)
 end
 
 function WeaponUI:SetIcon(ImageId:string?)
-    Controller:SetImage(WeaponUI.Instance.ToolImage, ImageId)
+    Controller:SetImage(WeaponUI.Instance.ToolImage, ImageId) 
 end
 
 function WeaponUI:SetAmmo(Ammo: (number|string)?, StoredAmmo: (number|string)?)
     if Ammo then
+        if typeof(Ammo) == "number" then
+            Ammo = Ammo > 0 and Ammo or "--"
+        end
         Controller:SetText(WeaponUI.Instance.AmmoInfo.AmmoLabel, tostring(Ammo))
     end
     
     if StoredAmmo then
+        if typeof(StoredAmmo) == "number" then
+            StoredAmmo = StoredAmmo > 0 and StoredAmmo or "--"
+        end
         Controller:SetText(WeaponUI.Instance.AmmoInfo.StoredAmmoLabel, tostring(StoredAmmo))
     end
 end

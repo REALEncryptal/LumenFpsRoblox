@@ -7,10 +7,10 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 Controller.Priority = 55
 
-local CharacterUtil
+local CharacterController
 
 function Controller:Init() 
-    CharacterUtil = shared.Import("CharacterUtil")
+    CharacterController = shared.Import("CharacterController")
 
     Controller.Instance = Players.LocalPlayer.PlayerGui:WaitForChild("Game")
 
@@ -21,7 +21,7 @@ function Controller.Signals.Update(DeltaTime: number)
     Controller.WeaponUI:Update(DeltaTime)
 
     -- hide cursor in first person
-    local Character = CharacterUtil.GetCharacter()
+    local Character = CharacterController.GetCharacter()
     if not Character then return end
     if not Character.Head then return end
 

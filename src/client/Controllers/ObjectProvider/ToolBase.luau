@@ -20,12 +20,12 @@ ToolBase.__index = ToolBase
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
 local Trove = shared.Import("trove")
 local Spring = shared.Import("Spring3")
 local Constants = shared.Import("Constants")
-local CharacterUtil = shared.Import("CharacterUtil")
+local CharacterController = shared.Import("CharacterController")
 local TweenUtil = shared.Import("TweenUtil")
+local InterfaceController = shared.Import("InterfaceController")
 
 function ToolBase.new( ToolFolder: Folder )
     assert(ToolFolder, "ToolBase.New - ToolFolder is nil")
@@ -44,7 +44,6 @@ function ToolBase.new( ToolFolder: Folder )
 
     -- 
     local ToolModel = ToolFolder:FindFirstChildOfClass("Model")
-    assert(ToolModel, "ToolBase.New - ToolModel not found")
 
     self.Viewmodel = self.Data.IsRigged and ToolModel or ReplicatedStorage.Assets.Viewmodel
     self.Viewmodel = self.Trove:Clone(self.Viewmodel)
@@ -54,8 +53,9 @@ function ToolBase.new( ToolFolder: Folder )
     self.Animator = self.Viewmodel:FindFirstChild("Animator", true)
     assert(self.Animator, "ToolBase.New - Animator not found")
 
-    if not self.Data.IsRigged then
+    if not self.Data.IsRigged and ToolModel then
         self.Tool = self.Trove:Clone(ToolModel)
+        if not self.Tool then return end
         self.Tool:ScaleTo(Constants.ToolScale)
         self.Tool.Parent = self.Viewmodel
 
@@ -66,13 +66,23 @@ function ToolBase.new( ToolFolder: Folder )
         Joint.Name = "Tool"
     end
 
+    -- crosshair
     if self.Data.Crosshair then
         self.Crosshair = ReplicatedStorage.Assets.Crosshair:Clone()
         self.Crosshair.Parent = workspace.CurrentCamera
-
-        self.HideCrosshair = TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, 1, .2)
-        self.ShowCrosshair = TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, nil, .2)
     end
+
+    local Fallback = {}
+
+    function Fallback:Play() end
+    function Fallback:Stop() end
+
+    self.HideCrosshair = self.Crosshair 
+        and TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, 1, .2) 
+        or Fallback
+    self.ShowCrosshair = self.Crosshair 
+        and TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, nil, .2) 
+        or Fallback
     
     -- 
     self.Animations = {}
@@ -82,7 +92,7 @@ function ToolBase.new( ToolFolder: Folder )
 
     self.Offsets = {
         Base = self.Data.Offsets.Base or CFrame.new(),
-        Hidden = CFrame.new(),
+        Hidden = CFrame.new(0, -10, 0),
     }
 
     self.Springs = {
@@ -115,15 +125,20 @@ function ToolBase.new( ToolFolder: Folder )
     -- Update Tasks
     self:AddUpdateTask("UpdateState", 100, function(DeltaTime: number)
         self.CharacterState = {
-            MoveDirection = CharacterUtil.GetMoveDirection(),
-            WasGrounded = CharacterUtil.WasGrounded(),
-            Grounded = CharacterUtil.IsGrounded(),
+            MoveDirection = CharacterController.GetMoveDirection(),
+            WasGrounded = CharacterController.WasGrounded(),
+            Grounded = CharacterController.IsGrounded(),
             MouseDelta = UserInputService:GetMouseDelta(),
-            Velocity = CharacterUtil.GetVelocity(),
+            Velocity = CharacterController.GetVelocity(),
         }
     end)
 
     -- Shove Springs
+
+    CharacterController.OnImpact:Connect(function()
+        self.Springs.Impact:Shove(Vector3.new(0, -0.03, 0))
+    end)
+
     self:AddUpdateTask("ShoveSprings", 101, function(DeltaTime: number)
         -- Walk Spring
         if self.CharacterState.MoveDirection.Magnitude > 0.1 and self.CharacterState.Grounded then
@@ -156,19 +171,10 @@ function ToolBase.new( ToolFolder: Folder )
             )*DeltaTime)
         end
 
-        -- Impact
-        if self.CharacterState.Grounded and not self.CharacterState.WasGrounded and self.CharacterState.Velocity.Y < -2 then
-            self.Springs.Impact:Shove(Vector3.new(
-                0,
-                -5,
-                0
-            )*DeltaTime)
-        end
-
         -- Sway Spring
         local Magnitude = .05
 
-        self.Springs.Sway:Shove(Vector3.new(self.CharacterState.MouseDelta.X * Magnitude, self.CharacterState.MouseDelta.Y * Magnitude, self.CharacterState.MouseDelta.X * Magnitude*.1)*DeltaTime)
+        self.Springs.Sway:Shove(Vector3.new(self.CharacterState.MouseDelta.X * Magnitude, self.CharacterState.MouseDelta.Y * -Magnitude, self.CharacterState.MouseDelta.X * Magnitude*.1)*DeltaTime)
     end)
 
     -- Update Springs
@@ -248,7 +254,7 @@ function ToolBase.new( ToolFolder: Folder )
     end)
 
     -- DEBUG
-    self:PrintTasks()
+    --self:PrintTasks()
     
     return self
 end
@@ -280,19 +286,19 @@ function ToolBase:Equip()
     end
 
     self.ShowCrosshair:Play()
-
-
     self:StartEquip()
-
+    
     self.SwapCoroutine = task.delay(self.Data.SwapTime or 0, function()
         self.Swapping = false
         self.Equipped = true
         self.Equipping = false
+        
+        InterfaceController.WeaponUI.ToolObject = self
 
         self:EndEquip()
     end)
 end
-function ToolBase:Unequip() 
+function ToolBase:Unequip(NextTool) 
     if self.Unequipping then return end
 
     self.Animations.Unequip:Play()
@@ -304,16 +310,16 @@ function ToolBase:Unequip()
     end
 
     self.HideCrosshair:Play()
-
     self:StartUnequip()
-
-    self.SwapCoroutine = task.delay(self.Data.SwapTime or 0, function()
+    
+    self.SwapCoroutine = task.delay(self.Data.SwapTime or .2, function()
         self.Swapping = false
         self.Equipped = false
         self.Unequipping = false
-
         
         self.Offsets.Hidden = CFrame.new(0, -10, 0)
+        
+        InterfaceController.WeaponUI.ToolObject = NextTool 
 
         self:EndUnequip()
     end)

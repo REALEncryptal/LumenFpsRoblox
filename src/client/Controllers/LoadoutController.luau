@@ -14,15 +14,16 @@ end
 
 function Controller.Signals.CharacterAdded(Character: Model)
     Controller.Manager = ToolManager.new(Character)
+    Controller.Manager:AddTool("Fists")
     Controller.Manager:AddTool("M4A1")
-    Controller.Manager:EquipTool("M4A1")
+    Controller.Manager:EquipTool("Fists")
 
     local Humanoid = Character:WaitForChild("Humanoid")
     
     Humanoid.Died:Connect(function()
         Controller.Manager:Destroy()
         Controller.Manager = nil
-    end)
+    end)    
 end
 
 function Controller.Signals.Update(DeltaTime: number)

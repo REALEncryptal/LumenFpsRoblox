@@ -8,9 +8,7 @@ Firearm.__index = Firearm
 
 function Firearm.new(ToolFolder: Folder)
     local self = setmetatable(ToolBase.new(ToolFolder), Firearm)
-    self.Type = "Firearm"
-
-    self.Equipped = true    
+    self.Type = "Firearm" 
 
     self.State = {
         Ammo = self.Data.MagCapacity,
@@ -18,6 +16,7 @@ function Firearm.new(ToolFolder: Folder)
     
         Reloading = false,
 
+        WasWishFire = false,
         WishFire = false,
         WishADS = false,
         ADS = false,
@@ -26,27 +25,6 @@ function Firearm.new(ToolFolder: Folder)
         LastShot = tick(),
         
     }
-
-    -- Add update tasks
-    self:AddUpdateTask("UpdateAimPart", 103.5, function(DeltaTime: number)
-        local aimPart = self.Viewmodel:FindFirstChild("AimPart")
-        if aimPart then
-            local aimOffset = self.Viewmodel.PrimaryPart.CFrame:ToObjectSpace(aimPart.CFrame * self.Offsets.Base):Inverse()
-
-            --local position = aimOffset.Position
-            --local rotation = aimOffset - position
-
-            local t = 1-self.State.ADSProgress.Value
-
-            --local newX = position.X * (1 - t)
-            --local newY = position.Y * (1 - t)^2
-
-            --local newPosition = Vector3.new(newX, newY, position.Z)
-            --local interpolatedCFrame = CFrame.new(newPosition) * rotation
-
-            self.ViewmodelCFrame *= aimOffset:Lerp(CFrame.new(), t)
-        end
-    end)
 
     -- Bind input actionns
     InputUtil:BindAction("Reload", function(_, InputState)
@@ -90,9 +68,26 @@ function Firearm.new(ToolFolder: Folder)
 
     -- Add update tasks
     self:AddUpdateTask("UpdateFire", 104, function(DeltaTime: number)
-        if not self.State.WishFire then return end
+        if self.State.WishFire then
+            self:WishFire(not self.State.WasWishFire)
+        end
 
-        self:WishFire()
+        self.State.WasWishFire = self.State.WishFire
+    end)
+
+    -- Add update tasks
+    self:AddUpdateTask("UpdateAimPart", 103.5, function(DeltaTime: number)
+        local aimPart = self.Viewmodel:FindFirstChild("AimPart")
+        if aimPart then
+            local aimOffset = self.Data.Offsets.Aim--self.Viewmodel.PrimaryPart.CFrame:ToObjectSpace(aimPart.CFrame * self.Offsets.Base):Inverse()
+
+    
+            local t = 1-self.State.ADSProgress.Value
+
+            self.State.ADS = t < .95
+    
+            self.ViewmodelCFrame *= aimOffset:Lerp(CFrame.new(), t)
+        end
     end)
 
     return self
@@ -106,15 +101,27 @@ function Firearm:CreateDebug(Iris)
     local CanReload = self:CanReload()
     local TimeSinceLastShot = math.round((tick() - self.State.LastShot) * 10)/10
 
+    -- Ammunition information
     Iris.Text({"Ammo: " .. self.State.Ammo})
     Iris.Text({"Stored Ammo: " .. self.State.StoredAmmo})
-    Iris.Text({"Reloading: " .. (self.State.Reloading and YesText or NoText), nil, nil, true})
-    Iris.Text({"Was Reloading: " .. (self.WasReloading and YesText or NoText), nil, nil, true})
+    
+    -- Fire status
+    Iris.Text({"Can Fire: " .. (CanFire and YesText or NoText), nil, nil, true})
     Iris.Text({"Wish Fire: " .. (self.State.WishFire and YesText or NoText), nil, nil, true})
+    Iris.Text({"Wish Fire (was): " .. (self.State.WasWishFire and YesText or NoText), nil, nil, true})
+    
     Iris.Text({"Last Shot: " .. math.round(self.State.LastShot)})
     Iris.Text({"Time Since Last Shot: " .. (CanFire and "<font color='rgb(0, 255, 0)'>" .. TimeSinceLastShot .. "</font>" or "<font color='rgb(255, 0, 0)'>" .. TimeSinceLastShot .. "</font>"), nil, nil, true})
-    Iris.Text({"Can Fire: " .. (CanFire and YesText or NoText), nil, nil, true})
-    Iris.Text({"Can Reload: " .. (CanReload and YesText or NoText), nil, nil, true})    
+    
+    -- Reload status
+    Iris.Text({"Can Reload: " .. (CanReload and YesText or NoText), nil, nil, true})
+    Iris.Text({"Reloading: " .. (self.State.Reloading and YesText or NoText), nil, nil, true})
+    Iris.Text({"Was Reloading: " .. (self.WasReloading and YesText or NoText), nil, nil, true})
+    
+    -- ADS information
+    Iris.Text({"Wish ADS: " .. (self.State.WishADS and YesText or NoText), nil, nil, true})
+    Iris.Text({"ADS: " .. (self.State.ADS and YesText or NoText), nil, nil, true})
+    Iris.Text({"ADS Progress: " .. self.State.ADSProgress.Value})
 end
 
 function Firearm:CanAction()
@@ -141,7 +148,10 @@ end
 
 function Firearm:Reload()
     self.State.Reloading = false
-    self.ShowCrosshair:Play()
+
+    if not self.State.ADS then
+        self.ShowCrosshair:Play()
+    end
 
     local AmmoToAdd = self.Data.MagCapacity - self.State.Ammo
     self.State.Ammo = self.State.Ammo + AmmoToAdd
@@ -149,10 +159,14 @@ function Firearm:Reload()
 end
 
 function Firearm:StartADS()
+    if not self:CanAction() then return end
+    self.HideCrosshair:Play()
     TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 1}):Play()
 end
 
 function Firearm:EndADS()
+    if not self:CanAction() then return end
+    self.ShowCrosshair:Play()
     TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 0}):Play()
 end
 
@@ -162,16 +176,21 @@ function Firearm:CanFire()
         and (tick() - self.State.LastShot) >= 60 / self.Data.RPM
 end
 
-function Firearm:WishFire()
-    if self.State.Ammo == 0 then
+function Firearm:WishFire(IsClick:boolean)
+    if not IsClick and not self.Data.Automatic then return end
+    
+    if IsClick and self.State.Ammo <= 0 then
         self:WishReload()
     end
-
+    
     if not self:CanFire() then return end
 
     if self.State.Reloading then
         self.Animations.Reload:Stop()
-        self.ShowCrosshair:Play()
+
+        if not self.State.ADS then
+            self.ShowCrosshair:Play()
+        end
     end
 
     self.State.Ammo = self.State.Ammo - 1
@@ -189,6 +208,7 @@ function Firearm:StartUnequip()
         self.Animations.Reload:Stop()
         self.State.WasReloading = true
     end
+    self:EndADS()
 end
 
 function Firearm:EndEquip() 

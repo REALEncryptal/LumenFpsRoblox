@@ -16,7 +16,6 @@ local ClassMap = {
 }
 
 function ToolManager.new( Character:Model )
-
     assert(Character, "ToolManager.New - Character is nil")
     assert(typeof(Character) == "Instance", "ToolManager.New - Character is not an Instance")
     assert(Character:IsA("Model"), "ToolManager.New - Character is not a Model")
@@ -35,17 +34,18 @@ function ToolManager.new( Character:Model )
        end
     end)
 
+    -- DEBUG
     local Iris = DebugController.Iris
     self.Trove:Add(Iris:Connect(function()
-        local windowSize = Iris.State(Vector2.new(300, 400))
-        Iris.Window({"Tool Manager"}, {size = windowSize})
+        local windowSize = Iris.State(Vector2.new(240, 500))
+        local windowPos = Iris.State(Vector2.new(10, 40))
+        
+        Iris.Window({"Tool Manager"}, {size = windowSize, position = windowPos})
 
-		Iris.Text({"Current Tools: " .. #self.Tools})
-
-        Iris.Indent()
-
+        Iris.TabBar()
 		for ToolName, ToolObject in pairs(self.Tools) do
-			Iris.Tree({"Tool: " .. ToolName .. " - " .. ToolObject.Data.Name})
+			Iris.Tab({ToolObject.Data.Name})
+            Iris.Indent()
 
             if Iris.Button({ToolObject.Equipped and "Unequip" or "Equip"}).clicked() then
                 if ToolObject.Equipped then
@@ -74,9 +74,10 @@ function ToolManager.new( Character:Model )
             ToolObject:CreateDebug(Iris)
 
             Iris.End()
+            Iris.End()
 		end
-        
-        Iris.End() -- indent
+
+        Iris.End()
         
 	    Iris.End()
     end))
@@ -89,8 +90,11 @@ function ToolManager:AddTool( ToolName:string )
     local ToolFolder = ReplicatedStorage.Weapons:FindFirstChild(ToolName)
     assert(ToolFolder, "ToolManager.AddTool - ToolFolder is nil")
     local ToolData = require(ToolFolder:FindFirstChildOfClass("ModuleScript"))
-    
     local ToolObject = ClassMap[ToolData.Type].new(ToolFolder)
+    if not ToolObject then
+        warn("ToolManager.AddTool - ToolObject is nil for " .. ToolName)
+        return
+    end
     
     self.Tools[ToolName] = ToolObject
 
@@ -108,34 +112,37 @@ end
 
 function ToolManager:EquipTool( ToolName:string )
     local ToolObject = self.Tools[ToolName]
-    
     if not ToolObject then return end
 
+    if self.EquippedTool then
+        self:UnequipTool(self.EquippedTool, ToolObject)
+    end
+
+    if ToolName == "Fists" then
+        InterfaceController.WeaponUI.Hide:Play()
+    else
+        InterfaceController.WeaponUI.Show:Play()
+    end
+
+    self.EquippedTool = ToolName
     ToolObject:Equip()
     InterfaceController.WeaponUI.ToolObject = ToolObject
 end
 
-function ToolManager:UnequipTool( ToolName:string )
+function ToolManager:UnequipTool( ToolName:string, NextTool )
     local ToolObject = self.Tools[ToolName]
-    
     if not ToolObject then return end
 
-    ToolObject:Unequip()
-    InterfaceController.WeaponUI.ToolObject = nil
-end
-
-function ToolManager:UnequipAllTools()
-    for _, ToolObject in pairs(self.Tools) do
-        if not ToolObject then continue end
-        ToolObject:Unequip()
+    if ToolName=="Fists" and not NextTool then -- cant unequip nothing
+        return
     end
-end
-
-function ToolManager:SwapTool( NewToolName:string )
-    if not self.Tools[NewToolName] then return end
     
-    self:UnequipAllTools()
-    self:EquipTool(NewToolName)
+    ToolObject:Unequip(NextTool)
+    self.EquippedTool = nil
+
+    if not NextTool then
+        self:EquipTool("Fists")
+    end
 end
 
 function ToolManager:Update( DeltaTime: number )
