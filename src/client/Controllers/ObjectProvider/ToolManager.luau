@@ -107,7 +107,6 @@ function ToolManager.new( Character:Model )
                 end
             end
 
-            
             if ToolObject.Data.HudImage then
                 Iris.Image({ToolObject.Data.HudImage,UDim2.new(.5,.1,.1,.1),nil,Enum.ScaleType.Fit})
             end
@@ -143,6 +142,9 @@ function ToolManager:HideTools(Hide: boolean)
     for _, ToolObject in pairs(self.Tools) do
         ToolObject:Hide(Hide)
     end
+
+    InterfaceController.WeaponUI.Instance.Visible = not Hide
+    InterfaceController.EffectUI.VignetteInstance.Visible = not Hide
 end
 
 function ToolManager:AddTool( ToolName:string )

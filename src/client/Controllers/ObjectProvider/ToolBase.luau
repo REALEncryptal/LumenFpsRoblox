@@ -106,6 +106,7 @@ function ToolBase.new( ToolFolder: Folder )
         Impact = Spring.new(),
     }
 
+    self.Enabled = true
     self.Equipped = false
     self.Swapping = false
     self.Equipping = false
@@ -234,6 +235,7 @@ function ToolBase.new( ToolFolder: Folder )
 
     -- Set Camera
     self:AddUpdateTask("Update", 106, function(DeltaTime: number)
+        if not self.Enabled then return end
         if not self.Equipped and not self.Swapping then return end
         workspace.Camera.CFrame *= self.PreviousCameraCFrame:Inverse()
         
@@ -269,12 +271,11 @@ function ToolBase:CreateDebug(Iris) end
 
 function ToolBase:Hide(Hide: boolean)
     self.Offsets._Hidden = Hide and CFrame.new(-100, 0, 0) or CFrame.new()
+    self.Enabled = not Hide
 
-    if Hide then
-        self:Unequip()
-    else
-        self:Equip()
-    end
+    if not self.Crosshair then return end
+    
+    self.Crosshair.Crosshair.Enabled = not Hide
 end
 
 function ToolBase:Activate() end
