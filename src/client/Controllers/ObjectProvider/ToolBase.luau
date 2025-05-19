@@ -26,6 +26,7 @@ local Constants = shared.Import("Constants")
 local CharacterController = shared.Import("CharacterController")
 local TweenUtil = shared.Import("TweenUtil")
 local InterfaceController = shared.Import("InterfaceController")
+local CFrameUtil = shared.Import("CFrameUtil")
 
 function ToolBase.new( ToolFolder: Folder )
     assert(ToolFolder, "ToolBase.New - ToolFolder is nil")
@@ -91,8 +92,8 @@ function ToolBase.new( ToolFolder: Folder )
     self.CharacterState = {} -- character state
 
     self.Offsets = {
-        Base = self.Data.Offsets.Base or CFrame.new(),
-        Hidden = CFrame.new(0, -10, 0),
+        Base = CFrameUtil.Scale(self.Data.Offsets.Base or CFrame.new(), Constants.ToolScale),
+        Hidden = CFrameUtil.Scale(CFrame.new(0, -10, 0), Constants.ToolScale),
     }
 
     self.Springs = {
@@ -190,7 +191,7 @@ function ToolBase.new( ToolFolder: Folder )
     self:AddUpdateTask("UpdateViewmodelCFrame", 103, function(DeltaTime: number)
         self.ViewmodelCFrame = CFrame.new()
         self.ViewmodelCFrame *= workspace.CurrentCamera.CFrame
-        self.ViewmodelCFrame *= self.Offsets.Base
+        self.ViewmodelCFrame *= (workspace:GetAttribute("BaseOffset") or self.Offsets.Base)
         self.ViewmodelCFrame *= self.Offsets.Hidden
         self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Walk * self.Viewmodel:GetScale() * .2)
         self.ViewmodelCFrame *= CFrame.Angles(

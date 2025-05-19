@@ -4,7 +4,7 @@ local Constants = {
     DEBUG = false,
 
     -- 
-    ToolScale = 1,
+    ToolScale = 0.5,
 
     
     -- PRIORITY LEVELS FOR CITO INITIALIZATION

@@ -15,10 +15,12 @@ function Controller:Init()
     Controller.Instance = Players.LocalPlayer.PlayerGui:WaitForChild("Game")
 
     Controller.WeaponUI = require(script.WeaponUI):Init(Controller)
+    Controller.EffectUI = require(script.EffectUI):Init(Controller)
 end
 
 function Controller.Signals.Update(DeltaTime: number)
     Controller.WeaponUI:Update(DeltaTime)
+    Controller.EffectUI:Update(DeltaTime)
 
     -- hide cursor in first person
     local Character = CharacterController.GetCharacter()

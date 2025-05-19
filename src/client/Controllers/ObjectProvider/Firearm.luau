@@ -1,6 +1,11 @@
 local TweenService = game:GetService("TweenService")
 local InputUtil = shared.Import("InputUtil")
 local ToolBase = shared.Import("ToolBase")
+local InterfaceController = shared.Import("InterfaceController")
+local CameraController = shared.Import("CameraController")
+local SettingsController = shared.Import("SettingsController")
+local Constants = shared.Import("Constants")
+local CFrameUtil = shared.Import("CFrameUtil")
 
 
 local Firearm = setmetatable({}, ToolBase)
@@ -79,9 +84,8 @@ function Firearm.new(ToolFolder: Folder)
     self:AddUpdateTask("UpdateAimPart", 103.5, function(DeltaTime: number)
         local aimPart = self.Viewmodel:FindFirstChild("AimPart")
         if aimPart then
-            local aimOffset = self.Data.Offsets.Aim--self.Viewmodel.PrimaryPart.CFrame:ToObjectSpace(aimPart.CFrame * self.Offsets.Base):Inverse()
+            local aimOffset = workspace:GetAttribute("AimOffset") or CFrameUtil.Scale(self.Data.Offsets.Aim, Constants.ToolScale)
 
-    
             local t = 1-self.State.ADSProgress.Value
 
             self.State.ADS = t < .95
@@ -100,6 +104,19 @@ function Firearm:CreateDebug(Iris)
     local CanFire = self:CanFire()
     local CanReload = self:CanReload()
     local TimeSinceLastShot = math.round((tick() - self.State.LastShot) * 10)/10
+
+    -- Buttons
+    Iris.Separator()
+    Iris.Group()
+    if Iris.Button({"Set Aim Offset"}).clicked() then
+        workspace:SetAttribute("AimOffset", self.Viewmodel.PrimaryPart.CFrame:ToObjectSpace(self.Viewmodel.AimPart.CFrame * (workspace:GetAttribute("BaseOffset") or self.Offsets.Base)):Inverse())
+    end
+    if Iris.Button("Print").clicked() then
+        print(workspace:GetAttribute("AimOffset")) 
+    end
+    Iris.End()
+
+    Iris.Separator()
 
     -- Ammunition information
     Iris.Text({"Ammo: " .. self.State.Ammo})
@@ -122,6 +139,7 @@ function Firearm:CreateDebug(Iris)
     Iris.Text({"Wish ADS: " .. (self.State.WishADS and YesText or NoText), nil, nil, true})
     Iris.Text({"ADS: " .. (self.State.ADS and YesText or NoText), nil, nil, true})
     Iris.Text({"ADS Progress: " .. self.State.ADSProgress.Value})
+        
 end
 
 function Firearm:CanAction()
@@ -144,6 +162,7 @@ function Firearm:WishReload()
     self.State.Reloading = true
     self.Animations.Reload:Play()
     self.HideCrosshair:Play()
+    CameraController:TweenFOV(SettingsController:GetSetting("FOV"), self.Data.ADSTime*.5)
 end
 
 function Firearm:Reload()
@@ -156,17 +175,25 @@ function Firearm:Reload()
     local AmmoToAdd = self.Data.MagCapacity - self.State.Ammo
     self.State.Ammo = self.State.Ammo + AmmoToAdd
     self.State.StoredAmmo = self.State.StoredAmmo - AmmoToAdd
+
+    if self.State.ADS then
+        CameraController:TweenFOV(self.Data.ADSFOV, self.Data.ADSTime*.5)
+    end
 end
 
 function Firearm:StartADS()
     if not self:CanAction() then return end
     self.HideCrosshair:Play()
+    InterfaceController.EffectUI.Vignette = 0
+    CameraController:TweenFOV(self.Data.ADSFOV, self.Data.ADSTime)
     TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 1}):Play()
 end
 
 function Firearm:EndADS()
     if not self:CanAction() then return end
     self.ShowCrosshair:Play()
+    InterfaceController.EffectUI.Vignette = .8
+    CameraController:TweenFOV(SettingsController:GetSetting("FOV"), self.Data.ADSTime)
     TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 0}):Play()
 end
 
@@ -178,7 +205,7 @@ end
 
 function Firearm:WishFire(IsClick:boolean)
     if not IsClick and not self.Data.Automatic then return end
-    
+
     if IsClick and self.State.Ammo <= 0 then
         self:WishReload()
     end
@@ -190,6 +217,8 @@ function Firearm:WishFire(IsClick:boolean)
 
         if not self.State.ADS then
             self.ShowCrosshair:Play()
+        else
+            CameraController:TweenFOV(self.Data.ADSFOV, self.Data.ADSTime*.5)
         end
     end
 

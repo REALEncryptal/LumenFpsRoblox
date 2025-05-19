@@ -36,11 +36,63 @@ function ToolManager.new( Character:Model )
 
     -- DEBUG
     local Iris = DebugController.Iris
+    local OffsetEditorEnabled = false
+
     self.Trove:Add(Iris:Connect(function()
-        local windowSize = Iris.State(Vector2.new(240, 500))
-        local windowPos = Iris.State(Vector2.new(10, 40))
-        
+        local windowSize = Iris.State(Vector2.new(240, 580))
+        local windowPos = Iris.State(Vector2.new(10, 0))
+        local editorWindowSize = Iris.State(Vector2.new(300, 125))
+        local editorWindowPos = Iris.State(Vector2.new(260, 0))
+
+
+        -- Tool manager window
         Iris.Window({"Tool Manager"}, {size = windowSize, position = windowPos})
+
+        if Iris.Button("Toggle Offset Editor").clicked() then
+            OffsetEditorEnabled = not OffsetEditorEnabled
+
+            if not OffsetEditorEnabled then
+                workspace:SetAttribute("BaseOffset", nil)
+            end
+        end
+
+        if OffsetEditorEnabled then
+            Iris.Window({"Offset Editor", nil,nil,true,true}, {size = editorWindowSize, position = editorWindowPos})
+
+            local Args = {
+                "X",
+                0.025,
+                -5,
+                5
+            }
+            local X = Iris.InputNum(Args)
+
+            Args[1] = "Y"
+            local Y = Iris.InputNum(Args)
+
+            Args[1] = "Z"
+            local Z = Iris.InputNum(Args)
+
+            Iris.SameLine()
+            if Iris.Button("Reset to Data Offset").clicked() and self.EquippedTool then
+                local ToolObject = self.Tools[self.EquippedTool]
+                X.state.number:set(ToolObject.Data.Offsets.Base.X)
+                Y.state.number:set(ToolObject.Data.Offsets.Base.Y)
+                Z.state.number:set(ToolObject.Data.Offsets.Base.Z)
+            end
+
+            local BaseOffset = CFrame.new(X.state.number.value, Y.state.number.value, Z.state.number.value)
+            workspace:SetAttribute("BaseOffset", BaseOffset)
+
+            if Iris.Button("Print").clicked() then
+                print(BaseOffset)
+            end
+            Iris.End()
+
+            Iris.End()
+        end
+
+        Iris.Separator()
 
         Iris.TabBar()
 		for ToolName, ToolObject in pairs(self.Tools) do
@@ -54,9 +106,10 @@ function ToolManager.new( Character:Model )
                     self:EquipTool(ToolName)
                 end
             end
+
             
             if ToolObject.Data.HudImage then
-                Iris.Image({ToolObject.Data.HudImage,UDim2.new(.5,.1,.2,.1),nil,Enum.ScaleType.Fit})
+                Iris.Image({ToolObject.Data.HudImage,UDim2.new(.5,.1,.1,.1),nil,Enum.ScaleType.Fit})
             end
 
             local YesText = "<font color='rgb(0, 255, 0)'>Yes</font>"
