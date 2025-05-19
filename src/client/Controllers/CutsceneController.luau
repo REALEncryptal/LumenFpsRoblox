@@ -56,14 +56,12 @@ function Controller:DebugUI()
                     Controller:DestroyCutscene(CutsceneName)
                 end
 
-                if Controller.Cutscenes[CutsceneName] then
-                    if not Controller.Cutscenes[CutsceneName].Playing then
-                        if Iris.Button("Play").clicked() then
-                            Controller:StartCutscene(CutsceneName)
-                        end
-                    else
-                        Iris.Text({"Playing"})
+                if Controller.Cutscenes[CutsceneName] and not Controller.Cutscenes[CutsceneName].Playing then
+                    if Iris.Button("Play").clicked() then
+                        Controller:StartCutscene(CutsceneName)
                     end
+                else
+                    Iris.Text({"Playing"})
                 end
             else
                 Controller.Cutscenes[CutsceneName] = nil

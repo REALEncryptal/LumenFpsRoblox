@@ -4,6 +4,8 @@ return function(CutsceneClass)
     local Cutscene = setmetatable({}, CutsceneClass)
     Cutscene.__index = Cutscene
 
+    local LoadoutController = shared.Import("LoadoutController")
+
     function Cutscene.new()
         local self = setmetatable(CutsceneClass.new("TestScene"), Cutscene)
         
@@ -29,19 +31,26 @@ return function(CutsceneClass)
             }
         })
 
-        -- Create cutscene events
+        -- 
         self.OnStart:Connect(function()
             for _, Instance in pairs(self.Instances) do
                 Instance.Parent = self.Container
             end
         end)
 
+        -- CLeanup
+        self.Trove:Add(function()
+            LoadoutController.Manager:HideTools(false)
+        end)
+
+        -- Create events
         self:Create(
             "Function",
             {function()
                 self:GetInstance("Map").Parent = workspace
                 self:GetInstance("Cat").Parent = self:GetInstance("Map")
-                print("Parented map and cat")
+
+                LoadoutController.Manager:HideTools(true)
             end},
             {self:TimeTrigger(0)}
         )

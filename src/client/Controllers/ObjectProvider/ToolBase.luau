@@ -94,6 +94,7 @@ function ToolBase.new( ToolFolder: Folder )
     self.Offsets = {
         Base = CFrameUtil.Scale(self.Data.Offsets.Base or CFrame.new(), Constants.ToolScale),
         Hidden = CFrameUtil.Scale(CFrame.new(0, -10, 0), Constants.ToolScale),
+        _Hidden = CFrame.new(),
     }
 
     self.Springs = {
@@ -193,6 +194,7 @@ function ToolBase.new( ToolFolder: Folder )
         self.ViewmodelCFrame *= workspace.CurrentCamera.CFrame
         self.ViewmodelCFrame *= (workspace:GetAttribute("BaseOffset") or self.Offsets.Base)
         self.ViewmodelCFrame *= self.Offsets.Hidden
+        self.ViewmodelCFrame *= self.Offsets._Hidden
         self.ViewmodelCFrame *= CFrame.new(self.UpdatedSprings.Walk * self.Viewmodel:GetScale() * .2)
         self.ViewmodelCFrame *= CFrame.Angles(
             math.rad(self.UpdatedSprings.Walk.Y * 15),
@@ -264,6 +266,16 @@ end
 function ToolBase:CreateDebug(Iris) end
 
 -- MAIN METHODS
+
+function ToolBase:Hide(Hide: boolean)
+    self.Offsets._Hidden = Hide and CFrame.new(-100, 0, 0) or CFrame.new()
+
+    if Hide then
+        self:Unequip()
+    else
+        self:Equip()
+    end
+end
 
 function ToolBase:Activate() end
 function ToolBase:AltActivate() end

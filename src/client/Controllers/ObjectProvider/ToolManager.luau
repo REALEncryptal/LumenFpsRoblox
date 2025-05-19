@@ -139,6 +139,12 @@ function ToolManager.new( Character:Model )
 end
 
 -- Main methods
+function ToolManager:HideTools(Hide: boolean)
+    for _, ToolObject in pairs(self.Tools) do
+        ToolObject:Hide(Hide)
+    end
+end
+
 function ToolManager:AddTool( ToolName:string )
     local ToolFolder = ReplicatedStorage.Weapons:FindFirstChild(ToolName)
     assert(ToolFolder, "ToolManager.AddTool - ToolFolder is nil")
