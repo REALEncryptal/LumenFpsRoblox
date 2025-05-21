@@ -14,4 +14,9 @@ return  {
             HoldDuration = 2,
         }
     },
+
+    Validate = function() return true end,
+    Activate = function(Player, Object)
+        shared.Import("net"):RemoteEvent("PlayCutscene"):FireClient(Player, "TestScene")
+    end,
 }

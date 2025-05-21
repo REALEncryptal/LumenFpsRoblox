@@ -6,6 +6,9 @@ local Constants = {
     -- 
     ToolScale = 0.5,
 
+    -- Interaction controller
+    MAX_OBJECT_HOVER_DISTANCE = 10,
+
     
     -- PRIORITY LEVELS FOR CITO INITIALIZATION
     PRIORITY = {

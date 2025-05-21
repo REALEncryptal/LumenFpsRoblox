@@ -1,4 +1,7 @@
-local Controller = {}
+local Controller = {
+    Signals = {},
+    Priority = 50
+}
 Controller.PendingActions = {}
 local Net, ActionIndex, ObjectIndex
 
@@ -11,15 +14,17 @@ function Controller:Init()
     ActionIndex = shared.Import "ActionIndex"
     ObjectIndex = shared.Import "ObjectIndex"
 
-    Controller.ActionCancelled = Net:RemoteEvent("ActionCancelled")
-    Controller.ActionStart = Net:RemoteEvent("ActionStart")
-    Controller.ActionFailed = Net:RemoteEvent("ActionFailed")
+    Controller.Remotes = {}
+    Controller.Remotes.ActionCancelled = Net:RemoteEvent("ActionCancelled")
+    Controller.Remotes.ActionStart = Net:RemoteEvent("ActionStart")
+    Controller.Remotes.ActionFailed = Net:RemoteEvent("ActionFailed")
+    Controller.Remotes.ActionSignal = Net:RemoteEvent("ActionSignal")
 
-    Controller.ActionCancelled:Connect(Controller._ActionCancelled)
-    Controller.ActionStart:Connect(Controller._StartAction)
+    Controller.Remotes.ActionCancelled.OnServerEvent:Connect(Controller._ActionCancelled)
+    Controller.Remotes.ActionStart.OnServerEvent:Connect(Controller._StartAction)
 end
 
-function Controller:Update(DeltaTime, Connection)
+function Controller.Signals.Update(DeltaTime, Connection)
     local CurrentTick = tick()
 
     for Object, PendingAction in pairs(Controller.PendingActions) do
@@ -60,7 +65,7 @@ function Controller._StartAction(Player, Object, ActionName)
     local ObjectData = ObjectIndex[Object.Name]
     if not ActionData.Validate(Player, Object, ObjectData) then
         warn("Server action failed")
-        Controller.ActionFailed:FireClient(Player, Object)
+        Controller.Remotes.ActionFailed:FireClient(Player, Object)
         return
     end
 
@@ -94,7 +99,7 @@ function Controller:_CallActionSignal(SignalName, Player, Object, ActionName)
         Callback(Player, Object, ObjectData)
     end
 
-    Controller.ActionSignal:FireClient(Player, SignalName, Object, ActionName)
+    Controller.Remotes.ActionSignal:FireClient(Player, SignalName, Object, ActionName)
 end
 
 --

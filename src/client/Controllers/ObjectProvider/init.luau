@@ -8,7 +8,9 @@
     
 --]]
 
-local Controller = { Objects = {} }
+local Controller = {
+    Objects = {},
+}
 
 Controller.Priority = 50
 

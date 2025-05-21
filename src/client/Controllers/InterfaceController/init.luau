@@ -5,7 +5,7 @@ local Controller = {
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-Controller.Priority = 55
+Controller.Priority = 35
 
 local CharacterController
 

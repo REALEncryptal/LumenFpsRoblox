@@ -5,10 +5,11 @@ local Controller = {
 
 Controller.Priority = 150
 
-local CutsceneClass, Iris
+local CutsceneClass, Iris, Net
 function Controller:Init()
     CutsceneClass = shared.Import("Cutscene")
     Iris = shared.Import("iris")
+    Net = shared.Import("net")
 
     Controller.Cutscenes = {}
     Controller.Map = {}
@@ -20,6 +21,12 @@ function Controller:Init()
         Controller.Map[CutsceneModule.Name] = require(CutsceneModule)(CutsceneClass)
     end
 
+    -- connect
+    Net:RemoteEvent("PlayCutscene").OnClientEvent:Connect(function(CutsceneName)
+        Controller:LoadCutscene(CutsceneName)
+        Controller:StartCutscene(CutsceneName)
+    end)
+
     -- debug
     Controller:DebugUI()
 end
@@ -28,8 +35,9 @@ function Controller:DebugUI()
     Iris:Connect(function()
         local windowSize = Iris.State(Vector2.new(240, 240))
         local windowPos = Iris.State(Vector2.new(600, 0))
+        local windowOpen = Iris.State(false)
 
-        Iris.Window({"Cutscene Controller"}, {size = windowSize, position = windowPos})
+        Iris.Window({"Cutscene Controller"}, {size = windowSize, position = windowPos, isUncollapsed = windowOpen})
 
         if Controller.CurrentCutscene then
             Iris.Text({"Current Cutscene: " .. Controller.CurrentCutscene.Name})

@@ -1,9 +1,20 @@
-local Controller = {}
+local Controller = {
+    Signals = {},
+    Priority = 40
+}
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
-local Net, Constants, ObjectIndex, InputImageMap, ActionIndex
+local 
+    Net, 
+    Constants, 
+    ObjectIndex, 
+    InputImageMap, 
+    ActionIndex, 
+    InterfaceController,
+    Signal
 
 function Controller:Init()
     Net = shared.Import "net"
@@ -11,41 +22,57 @@ function Controller:Init()
     ObjectIndex = shared.Import "ObjectIndex"
     InputImageMap = shared.Import "InputImageMap"
     ActionIndex = shared.Import "ActionIndex"
+    InterfaceController = shared.Import "InterfaceController"
+    Signal = shared.Import "signal"
 
     Controller.LastHoveredModel = nil
+    Controller.Enabled = true
 
     Controller.AvailableActions = {}
     Controller.Object = nil
     Controller.Tweens = {}
 
-    Controller.Gui = game.Players.LocalPlayer.PlayerGui:WaitForChild("Game")
-    Controller.Highlight = ReplicatedStorage.Assets:WaitForChild("HoverHighlight"):Clone()
+    Controller.Gui = InterfaceController.Instance
+    Controller.Highlight = ReplicatedStorage.Assets:FindFirstChild("HoverHighlight"):Clone()
     Controller.Highlight.Parent = ReplicatedStorage
 
-    Controller.Gui:WaitForChild("ObjectName")
+    Controller.OnHover = Signal.new()
+    Controller.OnActionStart = Signal.new()
+    Controller.OnActionEnd = Signal.new()
+    Controller.OnActionFailed = Signal.new()
 
     -- create remotes
-    Controller.ActionSignal = Net:RemoteEvent("ActionSignal")
-    Controller.ActionStart = Net:RemoteEvent("ActionStart")
-    Controller.ActionCancelled = Net:RemoteEvent("ActionCancelled")
+    Controller.Remotes = {}
+    Controller.Remotes.ActionSignal = Net:RemoteEvent("ActionSignal")
+    Controller.Remotes.ActionStart = Net:RemoteEvent("ActionStart")
+    --Controller.ActionCancelled = Net:RemoteEvent("ActionCancelled")
 
     -- connect
-    Controller.ActionSignal:Connect(Controller._ActionSignal)
+    Controller.Remotes.ActionSignal.OnClientEvent:Connect(Controller._ActionSignal)
 end
 
-function Controller:Update()
+function Controller.Signals.Update()
     local HoveredModel = Controller:GetHoveredModel()
-    Controller:VisualizeHoveredModel(HoveredModel)
+    Controller:VisualizeHoveredModel(Controller.Enabled and HoveredModel)
 
-    if HoveredModel and not Controller.LastHoveredModel then
+    if not Controller.Enabled and HoveredModel and Controller.LastHoveredModel then
+        Controller:_ModelNotHovered()
+        Controller.LastHoveredModel = nil
+
+        Controller.OnHover:Fire(nil)
+    end
+
+    if HoveredModel and not Controller.LastHoveredModel and Controller.Enabled then
         Controller.LastHoveredModel = HoveredModel
 
         Controller:_ModelNotHovered()
         Controller:_ModelHovered(HoveredModel)
-    elseif not HoveredModel and Controller.LastHoveredModel then
+        Controller.OnHover:Fire(HoveredModel)
+    elseif not HoveredModel and Controller.LastHoveredModel and Controller.Enabled then
         Controller.LastHoveredModel = HoveredModel
         
         Controller:_ModelNotHovered()
+        Controller.OnHover:Fire(nil)
     end
 
 
@@ -53,7 +80,7 @@ function Controller:Update()
     Controller.Gui:WaitForChild("ObjectName").Visible = if HoveredModel then true else false
 end
 
-function Controller:InputBegan(Input, Processed)
+function Controller.Signals.InputBegan(Input, Processed)
     if Processed then return end
     if not Controller.LastHoveredModel then return end
     if #Controller.AvailableActions <= 0 then return end
@@ -63,12 +90,12 @@ function Controller:InputBegan(Input, Processed)
         if ActionData.KeyCode ~= Input.KeyCode then continue end
 
         Controller:ActionStart(Action)
-        Controller.ActionStart:FireServer(Controller.LastHoveredModel, Action)
+        Controller.Remotes.ActionStart:FireServer(Controller.LastHoveredModel, Action)
         return
     end
 end
 
-function Controller:InputEnded(Input, Processed)
+function Controller.Signals.InputEnded(Input, Processed)
     if Processed then return end
     if not Controller.LastHoveredModel then return end
     if #Controller.AvailableActions <= 0 then return end
@@ -78,7 +105,7 @@ function Controller:InputEnded(Input, Processed)
         if ActionData.KeyCode ~= Input.KeyCode then continue end
 
         Controller:ActionStop(Action)
-        Controller.ActionCancelled:FireServer(Controller.LastHoveredModel, Action)
+        --Controller.Remotes.ActionCancelled:FireServer(Controller.LastHoveredModel, Action)
         return
     end
 end
@@ -86,6 +113,7 @@ end
 --
 
 function Controller:ActionStart(Action)
+    Controller.OnActionStart:Fire(Action)
     local Label = Controller.Gui.ActionContainer:FindFirstChild(Action).ActionName
     local ProgressBar = Label.ProgressBar
     local Background = Label.ProgressBarBackground
@@ -104,11 +132,11 @@ function Controller:ActionStart(Action)
     
     ProgressBar.Size = UDim2.new(0, 0 , .01, 0)
     Tween:Play()
-    print(Action)
     Controller.Tweens[Action] = Tween
 end
 
 function Controller:ActionStop(Action)
+    Controller.OnActionEnd:Fire(Action)
     local Label = Controller.Gui.ActionContainer:FindFirstChild(Action).ActionName
     local ProgressBar = Label.ProgressBar
     local Background = Label.ProgressBarBackground
@@ -118,6 +146,7 @@ function Controller:ActionStop(Action)
     ProgressBar.Size = UDim2.new(0, 0 , .01, 0)
 
     local Tween:Tween = Controller.Tweens[Action]
+    if not Tween then return end
     Tween:Destroy()
     Controller.Tweens[Action] = nil
 end
@@ -162,6 +191,7 @@ function Controller:_ModelHovered(Model)
     end
 end
 
+
 function Controller:_ModelNotHovered(Model)
     Controller.VisualizeHoveredModel(nil)
 
@@ -200,9 +230,12 @@ end
 function Controller:VisualizeHoveredModel(Model)
     Controller.Highlight.Parent = if Model then Model else ReplicatedStorage
 
+    Controller.Gui.ObjectName.Text = ""
+
     if not Model then return end
     if not ObjectIndex[Model.Name] then return end
-    Controller.Gui.ObjectName.Text = ObjectIndex[Model.Name].Name
+    
+    --Controller.Gui.ObjectName.Text = ObjectIndex[Model.Name].Name
 end
 
 --

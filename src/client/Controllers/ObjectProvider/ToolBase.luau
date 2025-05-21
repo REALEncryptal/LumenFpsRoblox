@@ -27,6 +27,7 @@ local CharacterController = shared.Import("CharacterController")
 local TweenUtil = shared.Import("TweenUtil")
 local InterfaceController = shared.Import("InterfaceController")
 local CFrameUtil = shared.Import("CFrameUtil")
+local InteractionController = shared.Import("InteractionController")
 
 function ToolBase.new( ToolFolder: Folder )
     assert(ToolFolder, "ToolBase.New - ToolFolder is nil")
@@ -35,7 +36,6 @@ function ToolBase.new( ToolFolder: Folder )
     
     local self = setmetatable({}, ToolBase)
     self.Type = "ToolBase"
-
     self.Data = require(ToolFolder:FindFirstChildOfClass("ModuleScript"))
 
     -- 
@@ -120,6 +120,8 @@ function ToolBase.new( ToolFolder: Folder )
     for AnimationName, AnimationId in pairs(self.Data.Animations) do
         self:LoadAnimation(AnimationName, AnimationId)
     end
+
+    self:LoadAnimation("Hover", 95762835448575)
 
     if self.Animations.Idle then
         self.Animations.Idle:Play()
@@ -260,6 +262,13 @@ function ToolBase.new( ToolFolder: Folder )
 
     -- DEBUG
     --self:PrintTasks()
+    InteractionController.OnHover:Connect(function(Model)
+        if Model then
+            self.Animations.Hover:Play()
+        else
+            self.Animations.Hover:Stop()
+        end
+    end)
     
     return self
 end
@@ -283,6 +292,10 @@ function ToolBase:AltActivate() end
 
 function ToolBase:Equip() 
     if self.Equipping then return end
+    
+    if self.SwapCoroutine then
+        task.cancel(self.SwapCoroutine)
+    end
 
     self.Equipping = true
     self.Swapping = true
@@ -295,9 +308,7 @@ function ToolBase:Equip()
         self.Offsets.Hidden = CFrame.new()
     end)
 
-    if self.SwapCoroutine then
-        task.cancel(self.SwapCoroutine)
-    end
+    InteractionController.Enabled = false
 
     self.ShowCrosshair:Play()
     self:StartEquip()
@@ -307,6 +318,8 @@ function ToolBase:Equip()
         self.Equipped = true
         self.Equipping = false
         
+        InteractionController.Enabled = true
+        
         InterfaceController.WeaponUI.ToolObject = self
 
         self:EndEquip()
@@ -315,13 +328,14 @@ end
 function ToolBase:Unequip(NextTool) 
     if self.Unequipping then return end
 
-    self.Animations.Unequip:Play()
-    self.Unequipping = true
-    self.Swapping = true
-
     if self.SwapCoroutine then
         task.cancel(self.SwapCoroutine) 
     end
+
+    self.Animations.Unequip:Play()
+    self.Unequipping = true
+    self.Swapping = true
+    InteractionController.Enabled = false
 
     self.HideCrosshair:Play()
     self:StartUnequip()
@@ -334,7 +348,7 @@ function ToolBase:Unequip(NextTool)
         self.Offsets.Hidden = CFrame.new(0, -10, 0)
         
         InterfaceController.WeaponUI.ToolObject = NextTool 
-
+        InteractionController.Enabled = true
         self:EndUnequip()
     end)
 end
@@ -345,7 +359,7 @@ function ToolBase:StartEquip() end
 function ToolBase:EndEquip() end
 
 -- run update tasks
-function ToolBase:Update(DeltaTime: number) 
+function ToolBase:Update(DeltaTime: number)
     for _, TaskData in pairs(self.SortedUpdateTasks) do
         TaskData.Data.Task(DeltaTime)
     end

@@ -6,6 +6,7 @@ local CameraController = shared.Import("CameraController")
 local SettingsController = shared.Import("SettingsController")
 local Constants = shared.Import("Constants")
 local CFrameUtil = shared.Import("CFrameUtil")
+local InteractionController = shared.Import("InteractionController")
 
 
 local Firearm = setmetatable({}, ToolBase)
@@ -153,11 +154,13 @@ function Firearm:CanReload()
         self:CanAction()
         and self.State.Reloading == false
         and self.State.StoredAmmo > 0
-        and self.State.Ammo <= self.Data.MagCapacity
+        and self.State.Ammo < self.Data.MagCapacity
 end
 
 function Firearm:WishReload()
     if not self:CanReload() then return end
+
+    InteractionController.Enabled = false
 
     self.State.Reloading = true
     self.Animations.Reload:Play()
@@ -179,10 +182,15 @@ function Firearm:Reload()
     if self.State.ADS then
         CameraController:TweenFOV(self.Data.ADSFOV, self.Data.ADSTime*.5)
     end
+
+    InteractionController.Enabled = true
 end
 
 function Firearm:StartADS()
     if not self:CanAction() then return end
+
+    InteractionController.Enabled = false
+    
     self.HideCrosshair:Play()
     InterfaceController.EffectUI.Vignette = 0
     CameraController:TweenFOV(self.Data.ADSFOV, self.Data.ADSTime)
@@ -191,7 +199,12 @@ end
 
 function Firearm:EndADS()
     if not self:CanAction() then return end
-    self.ShowCrosshair:Play()
+
+    if not self.State.Reloading then
+        InteractionController.Enabled = true
+        self.ShowCrosshair:Play()
+    end
+
     InterfaceController.EffectUI.Vignette = .8
     CameraController:TweenFOV(SettingsController:GetSetting("FOV"), self.Data.ADSTime)
     TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 0}):Play()
