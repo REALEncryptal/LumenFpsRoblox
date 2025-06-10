@@ -16,7 +16,6 @@ local EffectUI = {
 local Controller
 
 
-
 function EffectUI:Init(InterfaceController)
     Controller = InterfaceController
 
@@ -24,11 +23,27 @@ function EffectUI:Init(InterfaceController)
     EffectUI.Vignette = .8
     EffectUI._CurrentVignette = .8
 
+    EffectUI.CinematicBlinds = Controller.Instance.CinematicBlinds
+    EffectUI.CinematicBlindsTopIn = TweenService:Create(EffectUI.CinematicBlinds.Top, TweenInfo.new(.5), {Size = UDim2.new(1, 0, 0.1, 0)})
+    EffectUI.CinematicBlindsBottomIn = TweenService:Create(EffectUI.CinematicBlinds.Bottom, TweenInfo.new(.5), {Size = UDim2.new(1, 0, 0.1, 0)})
+    EffectUI.CinematicBlindsTopOut = TweenService:Create(EffectUI.CinematicBlinds.Top, TweenInfo.new(.2), {Size = UDim2.new(1, 0, 0, 0)})
+    EffectUI.CinematicBlindsBottomOut = TweenService:Create(EffectUI.CinematicBlinds.Bottom, TweenInfo.new(.2), {Size = UDim2.new(1, 0, 0, 0)})
+
     return EffectUI
 end
 
 function EffectUI:DeltaLerp(DeltaTime: number, Number: number, Goal: number, Speed: number): number
     return lerpDamped(Number, Goal, Speed, DeltaTime)
+end
+
+function EffectUI:ShowCinematicBlinds()
+    EffectUI.CinematicBlindsTopIn:Play()
+    EffectUI.CinematicBlindsBottomIn:Play()
+end
+
+function EffectUI:HideCinematicBlinds()
+    EffectUI.CinematicBlindsTopOut:Play()
+    EffectUI.CinematicBlindsBottomOut:Play()
 end
 
 function EffectUI:Update(DeltaTime: number) 

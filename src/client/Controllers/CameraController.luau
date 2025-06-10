@@ -19,10 +19,11 @@ function Controller:SetFOV(FOV: number)
     Controller.Instance.FieldOfView = FOV
 end
 
-function Controller:TweenFOV(FOV: number, Time: number)
+function Controller:TweenFOV(FOV: number, Time: number, EasingStyle: Enum.EasingStyle?)
+    EasingStyle = EasingStyle or Enum.EasingStyle.Quad
     TweenService:Create(
         Controller.Instance,
-        TweenInfo.new(Time),
+        TweenInfo.new(Time, EasingStyle),
         {FieldOfView = FOV}
     ):Play()
 end

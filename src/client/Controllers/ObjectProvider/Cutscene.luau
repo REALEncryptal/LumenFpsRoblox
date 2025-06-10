@@ -47,6 +47,15 @@ function Cutscene.new(Name)
         Camera = ReplicatedStorage.Assets.Camera
     })
 
+    -- Camera
+
+    self:AddUpdateTask("Camera", 0, function(DeltaTime)
+        -- Rotate the camera to look out from the bottom face
+        local torsoCFrame = self:GetInstance("Camera").Torso.CFrame
+        local bottomFaceCFrame = torsoCFrame * CFrame.Angles(math.rad(90), 0, math.rad(90)) -- Rotate 90 degrees around X-axis for bottom face then 90 deg to make it landscape
+        workspace.CurrentCamera.CFrame = bottomFaceCFrame
+    end)
+
     return self
 end
 
@@ -115,7 +124,7 @@ function Cutscene:ExecuteEvent(Event, Type, EventData)
         if EventData.Stop then
             Event:Stop()
         else
-            Event:Play()
+            Event:Play(if EventData.FadeTime then EventData.FadeTime else 0)
         end
     elseif Type == "Sound" then
         local Sound = Instance.new("Sound")
@@ -123,7 +132,8 @@ function Cutscene:ExecuteEvent(Event, Type, EventData)
         Sound.Name = "Sound_" .. Event
         Sound.Parent = self.Container
 
-        SoundService:PlayLocalSound(Sound)
+        self.Trove:Add(Sound)
+        Sound:Play()
     elseif Type == "End" then
         self.Playing = false
         self.OnEnd:Fire()
@@ -191,13 +201,19 @@ function Cutscene:LoadAnimations(AnimationOwners: { [string]: { AnimationName: s
         local Animator:Animator = AnimationOwner:FindFirstChild("Animator", true)
         assert(Animator, "AnimationOwner must have an Animator: " .. AnimationOwner:GetFullName())
 
+        local Parent = AnimationOwner.Parent
+        AnimationOwner.Parent = workspace
+
         for AnimationName, AnimationID in pairs(Animations) do
             local Animation = Instance.new("Animation")
+            Animation.Parent = AnimationOwner
             Animation.AnimationId = "rbxassetid://" .. AnimationID
             self.Trove:Add(Animation)
 
             self.Animations[AnimationOwnerName.."."..AnimationName] = Animator:LoadAnimation(Animation)
         end     
+
+        AnimationOwner.Parent = Parent
     end
 end
 

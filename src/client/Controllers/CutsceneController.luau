@@ -24,6 +24,7 @@ function Controller:Init()
     -- connect
     Net:RemoteEvent("PlayCutscene").OnClientEvent:Connect(function(CutsceneName)
         Controller:LoadCutscene(CutsceneName)
+        task.wait(.5)
         Controller:StartCutscene(CutsceneName)
     end)
 
