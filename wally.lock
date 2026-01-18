@@ -3,9 +3,14 @@
 registry = "test"
 
 [[package]]
+name = "1axen/secure-cast"
+version = "1.1.4"
+dependencies = []
+
+[[package]]
 name = "alexa/lumendev"
 version = "0.1.0"
-dependencies = [["imgizmo", "jakeywastaken/imgizmo@3.6.0"], ["iris", "sirmallard/iris@2.4.1"], ["net", "sleitnick/net@0.2.0"], ["signal", "sleitnick/signal@2.0.3"], ["trove", "sleitnick/trove@1.5.0"]]
+dependencies = [["ImGizmo", "jakeywastaken/imgizmo@3.6.0"], ["Iris", "sirmallard/iris@2.4.1"], ["Net", "sleitnick/net@0.2.0"], ["SecureCast", "1axen/secure-cast@1.1.4"], ["Signal", "sleitnick/signal@2.0.3"], ["Trove", "sleitnick/trove@1.5.0"]]
 
 [[package]]
 name = "jakeywastaken/imgizmo"

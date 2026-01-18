@@ -29,7 +29,6 @@ function Firearm.new(ToolFolder: Folder)
         ADSProgress = Instance.new("NumberValue"),
 
         LastShot = tick(),
-        
     }
 
     -- Bind input actionns

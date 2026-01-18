@@ -8,8 +8,8 @@ Controller.Priority = 150
 local CutsceneClass, Iris, Net
 function Controller:Init()
     CutsceneClass = shared.Import("Cutscene")
-    Iris = shared.Import("iris")
-    Net = shared.Import("net")
+    Iris = shared.Import("Iris")
+    Net = shared.Import("Net")
 
     Controller.Cutscenes = {}
     Controller.Map = {}

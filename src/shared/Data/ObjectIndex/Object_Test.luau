@@ -17,6 +17,6 @@ return  {
 
     Validate = function() return true end,
     Activate = function(Player, Object)
-        shared.Import("net"):RemoteEvent("PlayCutscene"):FireClient(Player, "TestScene")
+        shared.Import("Net"):RemoteEvent("PlayCutscene"):FireClient(Player, "TestScene")
     end,
 }

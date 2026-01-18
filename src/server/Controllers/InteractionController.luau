@@ -10,7 +10,7 @@ function Controller:PreInit()
 end
 
 function Controller:Init()
-    Net = shared.Import "net"
+    Net = shared.Import "Net"
     ActionIndex = shared.Import "ActionIndex"
     ObjectIndex = shared.Import "ObjectIndex"
 

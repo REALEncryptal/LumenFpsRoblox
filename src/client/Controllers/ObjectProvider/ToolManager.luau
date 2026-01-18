@@ -2,8 +2,8 @@ local ToolManager = {}
 ToolManager.__index = ToolManager
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Trove = shared.Import("trove")
-local Net = shared.Import("net")
+local Trove = shared.Import("Trove")
+local Net = shared.Import("Net")
 
 local ToolBase = shared.Import("ToolBase")
 local Firearm = shared.Import("Firearm")

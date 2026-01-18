@@ -20,7 +20,7 @@ ToolBase.__index = ToolBase
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-local Trove = shared.Import("trove")
+local Trove = shared.Import("Trove")
 local Spring = shared.Import("Spring3")
 local Constants = shared.Import("Constants")
 local CharacterController = shared.Import("CharacterController")
@@ -113,8 +113,8 @@ function ToolBase.new( ToolFolder: Folder )
     self.Unequipping = false
     
     self.ViewmodelCFrame = CFrame.new()
-    self.CameraCFrame = workspace.CurrentCamera.CFrame
-    self.PreviousCameraCFrame = workspace.CurrentCamera.CFrame
+    self.CameraCFrame = nil
+    self.PreviousCameraCFrame = nil
 
     -- Load animations
     for AnimationName, AnimationId in pairs(self.Data.Animations) do
@@ -239,17 +239,18 @@ function ToolBase.new( ToolFolder: Folder )
     self:AddUpdateTask("Update", 106, function(DeltaTime: number)
         if not self.Enabled then return end
         if not self.Equipped and not self.Swapping then return end
-        workspace.Camera.CFrame *= self.PreviousCameraCFrame:Inverse()
+        
+        workspace.CurrentCamera.CFrame *= self.PreviousCameraCFrame and self.PreviousCameraCFrame:Inverse() or CFrame.new()
         
         if self.Crosshair then
-            self.Crosshair.Position = workspace.Camera.CFrame.Position + workspace.Camera.CFrame.LookVector * 5
+            self.Crosshair.Position = workspace.CurrentCamera.CFrame.Position + workspace.CurrentCamera.CFrame.LookVector * 5
             self.Crosshair.CFrame = CFrame.lookAt(
                 self.Crosshair.Position,
-                workspace.Camera.CFrame.Position
+                workspace.CurrentCamera.CFrame.Position
             )
         end
 
-        workspace.Camera.CFrame *= self.CameraCFrame
+        workspace.CurrentCamera.CFrame *= self.CameraCFrame
         self.PreviousCameraCFrame = self.CameraCFrame
     end)
 
@@ -292,7 +293,7 @@ function ToolBase:AltActivate() end
 
 function ToolBase:Equip() 
     if self.Equipping then return end
-    
+
     if self.SwapCoroutine then
         task.cancel(self.SwapCoroutine)
     end

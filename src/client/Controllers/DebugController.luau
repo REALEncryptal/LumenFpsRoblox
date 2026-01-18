@@ -10,8 +10,8 @@ local Controller = {}
 Controller.Priority = 0
 
 function Controller:Init()
-    Controller.Iris = shared.Import("iris")
-    Controller.Gizmo = shared.Import("imgizmo")
+    Controller.Iris = shared.Import("Iris")
+    Controller.Gizmo = shared.Import("ImGizmo")
 
     Controller.Iris.Init()
     Controller.Gizmo.Init()

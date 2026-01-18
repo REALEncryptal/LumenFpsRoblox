@@ -4,7 +4,7 @@ Controller.Priority = 150
 
 local Net
 function Controller:Init()
-    Net = shared.Import("net")
+    Net = shared.Import("Net")
 
     Net:RemoteEvent("PlayCutscene")
 end

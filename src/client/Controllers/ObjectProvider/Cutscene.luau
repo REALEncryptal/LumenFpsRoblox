@@ -3,8 +3,8 @@ local SoundService = game:GetService("SoundService")
 local Cutscene = {}
 Cutscene.__index = Cutscene
 
-local Trove = shared.Import("trove")
-local Signal = shared.Import("signal")
+local Trove = shared.Import("Trove")
+local Signal = shared.Import("Signal")
 
 function Cutscene.new(Name)
     local self = setmetatable({}, Cutscene)

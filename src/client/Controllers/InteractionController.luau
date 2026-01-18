@@ -17,13 +17,13 @@ local
     Signal
 
 function Controller:Init()
-    Net = shared.Import "net"
+    Net = shared.Import "Net"
     Constants = shared.Import "Constants"
     ObjectIndex = shared.Import "ObjectIndex"
     InputImageMap = shared.Import "InputImageMap"
     ActionIndex = shared.Import "ActionIndex"
     InterfaceController = shared.Import "InterfaceController"
-    Signal = shared.Import "signal"
+    Signal = shared.Import "Signal"
 
     Controller.LastHoveredModel = nil
     Controller.Enabled = true

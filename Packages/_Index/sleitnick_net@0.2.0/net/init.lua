@@ -33,7 +33,7 @@ function Net:RemoteEvent(name: string): RemoteEvent
 		end
 		return r
 	else
-		local r = script:WaitForChild(name, 4)
+		local r = script:WaitForChild(name, 10)
 		if not r then
 			error("Failed to find RemoteEvent: " .. name, 2)
 		end

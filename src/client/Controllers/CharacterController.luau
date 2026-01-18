@@ -19,7 +19,7 @@ Controller.Priority = 10
 
 local Signal
 function Controller:Init()
-    Signal = shared.Import("signal")
+    Signal = shared.Import("Signal")
 
     Controller.OnImpact = Signal.new()
 end

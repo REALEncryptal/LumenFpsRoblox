@@ -1,0 +1,11 @@
+[package]
+name = "1axen/secure-cast"
+version = "1.1.4"
+description = "A server-authoritative projectile system for ROBLOX."
+license = "MIT"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["**"]
+include = ["src", "src/*", "wally.toml", "default.project.json", "LICENSE"]
+
+[dependencies]
