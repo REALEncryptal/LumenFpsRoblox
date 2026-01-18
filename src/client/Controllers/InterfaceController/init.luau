@@ -3,6 +3,7 @@ local Controller = {
 }
 
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 Controller.Priority = 35
@@ -27,7 +28,9 @@ function Controller.Signals.Update(DeltaTime: number)
     if not Character then return end
     if not Character.Head then return end
 
-    if Character.Head.LocalTransparencyModifier == 1 then
+    local Distance = (Character.Head.Position - workspace.CurrentCamera.CFrame.Position).Magnitude
+
+    if Distance < 1 then
        UserInputService.MouseIconEnabled = false 
     else
        UserInputService.MouseIconEnabled = true 
