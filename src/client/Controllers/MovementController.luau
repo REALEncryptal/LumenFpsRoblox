@@ -66,7 +66,7 @@ function Controller.Signals.CharacterAdded( Character:Model )
 	end)
 	
 	-- TODO: refactor this hack
-	Camera.CameraSubject = Character.Head
+	Camera.CameraSubject = Character.Collider
 end
 
 function Controller.Signals.Update( DeltaTime )
@@ -143,12 +143,15 @@ function Controller:DoGroundCast(MaxAngle)
 end
 
 function Controller:DoJump(DeltaTime)
+	Controller.Jump = false
 	if not Controller.Grounded then return end
 	if not Controller.WishJump then return end
 	if Controller.Slipping then return end
 	if tick()-Controller.LastJump < .3 then return end
 	Controller.LastJump = tick()
 	Controller.Jumped = true
+
+	Controller.Jump = true
 
 	local Velocity = Controller.Collider.AssemblyLinearVelocity
 	
@@ -234,6 +237,7 @@ function Controller:DoSlide()
 	
 	if Controller.WishSlide and not Controller.WasWishSlide and Controller.Sliding then -- cancel slide
 		Controller.Sliding = false
+		Controller:_StopSlide()
 		return
 	end
 	
@@ -241,6 +245,7 @@ function Controller:DoSlide()
 	if not Controller.Sliding and Controller.WishSlide and not Controller.WasWishSlide and Controller.PreviousVelocity.Magnitude > MIN_SLIDE_SPEED then
 		-- start slide
 		Controller.Sliding = true
+		Controller:_StartSlide()
 		
 		if Controller.Grounded then
 			-- slide boost
@@ -255,12 +260,14 @@ function Controller:DoSlide()
 	if Controller.Jumped then
 		Force = 1000 -- slide jump cancel boost
 		Controller.Sliding = false
+		Controller:_StopSlide()
 		return
 	end
 	
 	-- stop sliding if going too slow
 	if Controller.PreviousVelocity.Magnitude < MIN_SLIDE_SPEED then
 		Controller.Sliding = false
+		Controller:_StopSlide()
 		return
 	end
 	
@@ -269,6 +276,17 @@ function Controller:DoSlide()
 	
 	local MoveForce = Controller.MoveVector * Force
 	Controller:Push(MoveForce, Controller.Grounded and .3 or 0)
+end
+
+function Controller:_StartSlide()
+	Controller.Collider.Size = Vector3.new(1.429, 4.75/2, 1.429)
+	Controller.Collider.Position -= Vector3.new(0, 4.75/4, 0)
+
+end
+
+function Controller:_StopSlide()
+	Controller.Collider.Size = Vector3.new(1.429, 4.75, 1.429)
+	Controller.Collider.Position += Vector3.new(0, 4.75/4, 0) -- shitty hack (FIX LATER)
 end
 
 --

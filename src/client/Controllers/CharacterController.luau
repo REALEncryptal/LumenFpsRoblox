@@ -17,9 +17,10 @@ local Controller = {
 
 Controller.Priority = 10
 
-local Signal
+local Signal, MovementController
 function Controller:Init()
     Signal = shared.Import("Signal")
+    MovementController = shared.Import("MovementController")
 
     Controller.OnImpact = Signal.new()
 end
@@ -56,29 +57,29 @@ Controller.GetCharacter = function(): Model
 end
 
 -- middleware methods
-Controller.GetMoveDirection = Controller.RequireCharacter(function(Character: Model): Vector3
-    return Character.Humanoid.MoveDirection or Vector3.new()
-end, "Humanoid")
+Controller.GetMoveDirection = function(Character: Model): Vector3
+    return MovementController.MoveVector or Vector3.new()
+end
 
-Controller.GetVelocity = Controller.RequireCharacter(function(Character: Model): Vector3
-    return Character.PrimaryPart.AssemblyLinearVelocity or Vector3.new()
-end, "PrimaryPart")
+Controller.GetVelocity = function(Character: Model): Vector3
+    return MovementController.Collider.AssemblyLinearVelocity or Vector3.new()
+end
 
-Controller.GetMoveSpeed = Controller.RequireCharacter(function(Character: Model): number
-    return Character.PrimaryPart.AssemblyLinearVelocity.Magnitude or 0
-end, "PrimaryPart")
+Controller.GetMoveSpeed = function(Character: Model): number
+    return MovementController.AssemblyLinearVelocity.Magnitude or 0
+end
 
-Controller.IsGrounded = Controller.RequireCharacter(function(Character: Model): boolean
-    Controller._Grounded = Character.Humanoid.FloorMaterial ~= Enum.Material.Air or false
+Controller.IsGrounded =function(Character: Model): boolean
+    Controller._Grounded = MovementController.Grounded
+    return Controller._Grounded 
+end
+
+Controller.WasGrounded = function(Character: Model): boolean
     return Controller._Grounded
-end, "Humanoid")
+end
 
-Controller.WasGrounded = Controller.RequireCharacter(function(Character: Model): boolean
-    return Controller._Grounded
-end, "Humanoid")
-
-Controller.IsJumping = Controller.RequireCharacter(function(Character: Model): boolean
-    return Character.Humanoid.Jump or false
-end, "Humanoid")
+Controller.IsJumping = function(Character: Model): boolean
+    return Controller.Jump or false
+end
 
 return Controller
