@@ -270,7 +270,13 @@ function ToolBase.new( ToolFolder: Folder )
             self.Animations.Hover:Stop()
         end
     end)
-    
+
+    -- Component runtime: tools host a list of Components that own discrete
+    -- concerns (ammo, reload, ADS, fire, cook, throw, etc.). Components are
+    -- added via :AddComponent, destroyed with the tool via Trove.
+    self.Components = {}
+    self.ComponentList = {}
+
     return self
 end
 
@@ -318,10 +324,14 @@ function ToolBase:Equip()
         self.Swapping = false
         self.Equipped = true
         self.Equipping = false
-        
+
         InteractionController.Enabled = true
-        
+
         InterfaceController.WeaponUI.ToolObject = self
+
+        for _, component in ipairs(self.ComponentList) do
+            if component.Equip then component:Equip() end
+        end
 
         self:EndEquip()
     end)
@@ -339,6 +349,11 @@ function ToolBase:Unequip(NextTool)
     InteractionController.Enabled = false
 
     self.HideCrosshair:Play()
+
+    for _, component in ipairs(self.ComponentList) do
+        if component.Unequip then component:Unequip() end
+    end
+
     self:StartUnequip()
     
     self.SwapCoroutine = task.delay(self.Data.SwapTime or .2, function()
@@ -404,12 +419,36 @@ function ToolBase:RemoveUpdateTask(Name:string)
     self:SortUpdateTasks()
 end
 
-function ToolBase:LoadAnimation(Name: string, AnimationId: string):AnimationTrack 
+function ToolBase:LoadAnimation(Name: string, AnimationId: string):AnimationTrack
     local Animation = Instance.new("Animation")
     Animation.AnimationId = "rbxassetid://" .. AnimationId
 
     local AnimationTrack = self.Animator:LoadAnimation(Animation)
     self.Animations[Name] = AnimationTrack
+end
+
+-- COMPONENT API
+
+function ToolBase:AddComponent(Name: string, ComponentClass, Config)
+    assert(Name, "AddComponent: Name is nil")
+    assert(ComponentClass, "AddComponent: ComponentClass is nil for " .. Name)
+    assert(not self.Components[Name], "AddComponent: component already exists: " .. Name)
+
+    local component = ComponentClass.new(self, Config or {})
+    self.Components[Name] = component
+    table.insert(self.ComponentList, component)
+
+    self.Trove:Add(function()
+        if component.Destroy then component:Destroy() end
+    end)
+
+    if component.Init then component:Init() end
+
+    return component
+end
+
+function ToolBase:GetComponent(Name: string)
+    return self.Components[Name]
 end
 
 function ToolBase:Destroy()
