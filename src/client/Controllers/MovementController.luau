@@ -64,6 +64,9 @@ function Controller.Signals.CharacterAdded(Character: Model)
 	Controller.Collider = Character:WaitForChild("Collider")
 	Controller.ForceInstance = Character:WaitForChild("Force")
 	Controller.VelocityInstance = Character:WaitForChild("Velocity")
+	-- Disabled for now: constraint-driven velocity lags when reversing direction
+	-- against a wall. Writing AssemblyLinearVelocity directly gives instant response.
+	Controller.VelocityInstance.Enabled = false
 
 	-- Resize hull to Source-style proportions. Shift up by half the height delta so
 	-- feet don't sink into the floor on resize.
@@ -173,10 +176,7 @@ function Controller.Signals.Update(DeltaTime: number)
 	velocity = Controller:DoGravity(velocity, DeltaTime)
 	velocity = Controller:TryPlayerMove(velocity, DeltaTime)
 
-	-- Write both: AssemblyLinearVelocity for immediate state, VectorVelocity for
-	-- the constraint to maintain through any solver sub-steps.
 	Controller.Collider.AssemblyLinearVelocity = velocity
-	Controller.VelocityInstance.VectorVelocity = velocity
 	Controller.ForceInstance.Force = Vector3.new(0, workspace.Gravity * Controller.Collider.AssemblyMass, 0)
 
 	if Controller._Debug then
