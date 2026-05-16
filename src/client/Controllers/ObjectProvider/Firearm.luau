@@ -176,7 +176,7 @@ function Firearm:WishReload()
 
     self.State.Reloading = true
     self.Animations.Reload:Play()
-    self.HideCrosshair:Play()
+    self:HideCrosshair()
     CameraController:TweenFOV(SettingsController:GetSetting("FOV"), self.Data.ADSTime*.5)
 end
 
@@ -184,7 +184,7 @@ function Firearm:Reload()
     self.State.Reloading = false
 
     if not self.State.ADS then
-        self.ShowCrosshair:Play()
+        self:ShowCrosshair()
     end
 
     local AmmoToAdd = self.Data.MagCapacity - self.State.Ammo
@@ -203,7 +203,7 @@ function Firearm:StartADS()
 
     InteractionController.Enabled = false
     
-    self.HideCrosshair:Play()
+    self:HideCrosshair()
     InterfaceController.EffectUI.Vignette = 0
     CameraController:TweenFOV(self.Data.ADSFOV, self.Data.ADSTime)
     TweenService:Create(self.State.ADSProgress, TweenInfo.new(self.Data.ADSTime), {Value = 1}):Play()
@@ -214,7 +214,7 @@ function Firearm:EndADS()
 
     if not self.State.Reloading then
         InteractionController.Enabled = true
-        self.ShowCrosshair:Play()
+        self:ShowCrosshair()
     end
 
     InterfaceController.EffectUI.Vignette = .8
@@ -241,7 +241,7 @@ function Firearm:WishFire(IsClick:boolean)
         self.Animations.Reload:Stop()
 
         if not self.State.ADS then
-            self.ShowCrosshair:Play()
+            self:ShowCrosshair()
         else
             CameraController:TweenFOV(self.Data.ADSFOV, self.Data.ADSTime*.5)
         end

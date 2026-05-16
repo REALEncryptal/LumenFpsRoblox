@@ -24,7 +24,6 @@ local Trove = shared.Import("Trove")
 local Spring = shared.Import("Spring3")
 local Constants = shared.Import("Constants")
 local CharacterController = shared.Import("CharacterController")
-local TweenUtil = shared.Import("TweenUtil")
 local InterfaceController = shared.Import("InterfaceController")
 local CFrameUtil = shared.Import("CFrameUtil")
 local InteractionController = shared.Import("InteractionController")
@@ -68,25 +67,11 @@ function ToolBase.new( ToolFolder: Folder )
         Joint.Name = "Tool"
     end
 
-    -- crosshair
-    if self.Data.Crosshair then
-        self.Crosshair = ReplicatedStorage.Assets.Crosshair:Clone()
-        self.Crosshair.Parent = workspace.CurrentCamera
-    end
+    -- Crosshair, ammo, reload, etc. now live in Components (see :AddComponent
+    -- below). The legacy Data.Crosshair = true flag still works — see the
+    -- Data.Components loop near the end of this constructor.
 
-    local Fallback = {}
-
-    function Fallback:Play() end
-    function Fallback:Stop() end
-
-    self.HideCrosshair = self.Crosshair 
-        and TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, 1, .2) 
-        or Fallback
-    self.ShowCrosshair = self.Crosshair 
-        and TweenUtil.CreateTransparencyTween(self.Crosshair.Crosshair, nil, .2) 
-        or Fallback
-    
-    -- 
+    --
     self.Animations = {}
 
     self.State = {} -- tool state
@@ -242,13 +227,17 @@ function ToolBase.new( ToolFolder: Folder )
         if not self.Equipped and not self.Swapping then return end
         
         workspace.CurrentCamera.CFrame *= self.PreviousCameraCFrame and self.PreviousCameraCFrame:Inverse() or CFrame.new()
-        
-        if self.Crosshair then
-            self.Crosshair.Position = workspace.CurrentCamera.CFrame.Position + workspace.CurrentCamera.CFrame.LookVector * 5
-            self.Crosshair.CFrame = CFrame.lookAt(
-                self.Crosshair.Position,
-                workspace.CurrentCamera.CFrame.Position
-            )
+
+        -- Crosshair sits between the camera invert and re-apply so it lives in
+        -- raw-camera space (no spring jitter). The Crosshair component owns
+        -- the Instance; ToolBase just positions it here to stay inside the
+        -- camera surgery window.
+        local crosshairComponent = self:GetComponent("Crosshair")
+        if crosshairComponent then
+            local instance = crosshairComponent.Instance
+            local distance = crosshairComponent:GetPositionDistance()
+            instance.Position = workspace.CurrentCamera.CFrame.Position + workspace.CurrentCamera.CFrame.LookVector * distance
+            instance.CFrame = CFrame.lookAt(instance.Position, workspace.CurrentCamera.CFrame.Position)
         end
 
         workspace.CurrentCamera.CFrame *= self.CameraCFrame
@@ -285,6 +274,21 @@ function ToolBase.new( ToolFolder: Folder )
         self:_DeactivateBindings()
     end)
 
+    -- Data-driven Components:
+    --   Data.Components = { {Name = "Crosshair", Config = {}}, ... }
+    -- Each entry's Name resolves through Librarian so a component file at
+    -- src/client/Tool/Components/<Name>.luau is enough — no manual registration.
+    if self.Data.Components then
+        for _, entry in ipairs(self.Data.Components) do
+            local componentClass = shared.Import(entry.Name)
+            self:AddComponent(entry.Name, componentClass, entry.Config or {})
+        end
+    elseif self.Data.Crosshair then
+        -- Legacy fallback for tool data that hasn't migrated to Components yet
+        -- (e.g. an M4A1 module from before Phase 6).
+        self:AddComponent("Crosshair", shared.Import("Crosshair"), {})
+    end
+
     return self
 end
 
@@ -297,9 +301,23 @@ function ToolBase:Hide(Hide: boolean)
     self.Offsets._Hidden = Hide and CFrame.new(-100, 0, 0) or CFrame.new()
     self.Enabled = not Hide
 
-    if not self.Crosshair then return end
-    
-    self.Crosshair.Crosshair.Enabled = not Hide
+    local crosshair = self:GetComponent("Crosshair")
+    if crosshair then
+        crosshair:SetEnabled(not Hide)
+    end
+end
+
+-- Crosshair facade: nil-safe wrappers so callers don't need to GetComponent +
+-- nil-check at every show/hide site. Tools without a Crosshair component
+-- (Fists) get silent no-ops.
+function ToolBase:ShowCrosshair()
+    local crosshair = self:GetComponent("Crosshair")
+    if crosshair then crosshair:Show() end
+end
+
+function ToolBase:HideCrosshair()
+    local crosshair = self:GetComponent("Crosshair")
+    if crosshair then crosshair:Hide() end
 end
 
 function ToolBase:Activate() end
@@ -325,7 +343,7 @@ function ToolBase:Equip()
 
     InteractionController.Enabled = false
 
-    self.ShowCrosshair:Play()
+    self:ShowCrosshair()
     self:StartEquip()
     
     self.SwapCoroutine = task.delay(self.Data.SwapTime or 0, function()
@@ -358,7 +376,7 @@ function ToolBase:Unequip(NextTool)
     self.Swapping = true
     InteractionController.Enabled = false
 
-    self.HideCrosshair:Play()
+    self:HideCrosshair()
 
     self:_DeactivateBindings()
 
