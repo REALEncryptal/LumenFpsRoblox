@@ -293,7 +293,14 @@ function ToolBase.new( ToolFolder: Folder )
 end
 
 -- DEBUG
-function ToolBase:CreateDebug(Iris) end
+function ToolBase:CreateDebug(Iris)
+    for _, component in ipairs(self.ComponentList) do
+        if component.CreateDebug then
+            component:CreateDebug(Iris)
+            Iris.Separator()
+        end
+    end
+end
 
 -- MAIN METHODS
 
