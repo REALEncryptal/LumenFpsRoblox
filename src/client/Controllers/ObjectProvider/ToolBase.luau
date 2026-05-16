@@ -28,6 +28,7 @@ local TweenUtil = shared.Import("TweenUtil")
 local InterfaceController = shared.Import("InterfaceController")
 local CFrameUtil = shared.Import("CFrameUtil")
 local InteractionController = shared.Import("InteractionController")
+local InputUtil = shared.Import("InputUtil")
 
 function ToolBase.new( ToolFolder: Folder )
     assert(ToolFolder, "ToolBase.New - ToolFolder is nil")
@@ -276,6 +277,13 @@ function ToolBase.new( ToolFolder: Folder )
     -- added via :AddComponent, destroyed with the tool via Trove.
     self.Components = {}
     self.ComponentList = {}
+    self._BoundActions = {}
+
+    -- Bindings live only while the tool is equipped; destroying a tool mid-equip
+    -- must still tear down its InputUtil registrations.
+    self.Trove:Add(function()
+        self:_DeactivateBindings()
+    end)
 
     return self
 end
@@ -333,6 +341,8 @@ function ToolBase:Equip()
             if component.Equip then component:Equip() end
         end
 
+        self:_ActivateBindings()
+
         self:EndEquip()
     end)
 end
@@ -349,6 +359,8 @@ function ToolBase:Unequip(NextTool)
     InteractionController.Enabled = false
 
     self.HideCrosshair:Play()
+
+    self:_DeactivateBindings()
 
     for _, component in ipairs(self.ComponentList) do
         if component.Unequip then component:Unequip() end
@@ -449,6 +461,46 @@ end
 
 function ToolBase:GetComponent(Name: string)
     return self.Components[Name]
+end
+
+-- BINDINGS
+
+-- Walks every Component's declared `Bindings` table and registers each action
+-- with InputUtil. Called from the equip SwapCoroutine; mirrored by
+-- _DeactivateBindings on unequip. Action names must be unique across all
+-- components on a single tool — InputUtil rejects double-binds.
+function ToolBase:_ActivateBindings()
+    for actionName in pairs(self._BoundActions) do
+        InputUtil:UnbindAction(actionName)
+    end
+    table.clear(self._BoundActions)
+
+    for _, component in ipairs(self.ComponentList) do
+        local bindings = component.Bindings
+        if not bindings then continue end
+
+        for actionName, binding in pairs(bindings) do
+            assert(not self._BoundActions[actionName],
+                "ToolBase: binding action collision across components: " .. actionName)
+
+            local handler = binding.OnState
+            InputUtil:BindAction(actionName, function(_, state, inputObject)
+                if handler then
+                    handler(component, state, inputObject)
+                end
+            end, false, table.unpack(binding.Inputs))
+
+            self._BoundActions[actionName] = true
+        end
+    end
+end
+
+function ToolBase:_DeactivateBindings()
+    if not self._BoundActions then return end
+    for actionName in pairs(self._BoundActions) do
+        InputUtil:UnbindAction(actionName)
+    end
+    table.clear(self._BoundActions)
 end
 
 function ToolBase:Destroy()
