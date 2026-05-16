@@ -1,0 +1,14 @@
+[package]
+name = "realencryptal/hindsight"
+version = "0.1.0"
+description = "Generalized hit detection and lag-compensated rollback for Roblox gun systems."
+license = "MIT"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["**"]
+include = ["src", "src/**", "wally.toml", "default.project.json", "LICENSE", "README.md"]
+
+[dependencies]
+
+[dev-dependencies]
+ImGizmo = "jakeywastaken/imgizmo@^3.5.0"

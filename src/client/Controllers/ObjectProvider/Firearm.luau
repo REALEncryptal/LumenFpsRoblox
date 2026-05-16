@@ -7,6 +7,7 @@ local SettingsController = shared.Import("SettingsController")
 local Constants = shared.Import("Constants")
 local CFrameUtil = shared.Import("CFrameUtil")
 local InteractionController = shared.Import("InteractionController")
+local ProjectileController = shared.Import("ProjectileController")
 
 
 local Firearm = setmetatable({}, ToolBase)
@@ -249,8 +250,11 @@ function Firearm:WishFire(IsClick:boolean)
     self.State.Ammo = self.State.Ammo - 1
     self.State.LastShot = tick()
 
-    -- Simulate event
-    -- TODO: IMPLEMENT HIT DETECTION AND ROLLBACKS
+    -- Hindsight resolves the shot server-side with lag-comp rollback;
+    -- ProjectileController:Cast forwards to both the local visual world and
+    -- the server. Phase 6 HitscanFire component picks this up unchanged.
+    local camera = workspace.CurrentCamera
+    ProjectileController:Cast("Bullet", camera.CFrame.Position, camera.CFrame.LookVector)
 
     -- Visuals
     self.Animations.Fire:Play(0)

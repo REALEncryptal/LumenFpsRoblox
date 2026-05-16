@@ -11,3 +11,6 @@ Net = "sleitnick/net@0.2.0"
 Iris = "sirmallard/iris@2.4.1"
 ImGizmo = "jakeywastaken/imgizmo@^3.5.0"
 SecureCast = "1axen/secure-cast@1.1.4"
+# Hindsight is vendored under Packages/_Index/realencryptal_hindsight@0.1.0
+# directly (wally 0.3.2 does not accept path-style dependencies). Update by
+# copying from C:/Users/alexa/OneDrive/Documents/Dev/robloxlibs/Hindsight/src.
