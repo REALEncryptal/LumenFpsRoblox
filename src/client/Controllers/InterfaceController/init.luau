@@ -26,14 +26,16 @@ function Controller.Signals.Update(DeltaTime: number)
     -- hide cursor in first person
     local Character = CharacterController.GetCharacter()
     if not Character then return end
-    if not Character.Head then return end
 
-    local Distance = (Character.Head.Position - workspace.CurrentCamera.CFrame.Position).Magnitude
+    local Collider = Character:FindFirstChild("Collider")
+    if not Collider then return end
 
-    if Distance < 1 then
-       UserInputService.MouseIconEnabled = false 
+    local Distance = (Collider.Position - workspace.CurrentCamera.CFrame.Position).Magnitude
+
+    if Distance < Collider.Size.Y / 2 then
+       UserInputService.MouseIconEnabled = false
     else
-       UserInputService.MouseIconEnabled = true 
+       UserInputService.MouseIconEnabled = true
     end
 end
 

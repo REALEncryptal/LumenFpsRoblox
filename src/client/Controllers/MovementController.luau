@@ -3,350 +3,304 @@ local Controller = {
 	Signals = {}
 }
 
-local MIN_SLIDE_SPEED = 5
+-- Exact Source / HL2 / HL:DM values from gamemovement.cpp.
+-- Conversion: 1 stud = 16 Hammer units.
+local HULL_SIZE = Vector3.new(2, 4.5, 2) -- 32 × 32 × 72 hu
+local STEP_HEIGHT = 1.125 -- sv_stepsize = 18 hu
+local GROUND_SNAP_DISTANCE = 0.125 -- CategorizePosition trace = 2 hu
+local EYE_OFFSET_FROM_TOP = 0.5 -- VEC_VIEW = 64 hu (8 hu below top)
+local MIN_GROUND_NORMAL_Y = 0.7 -- Source's walkable threshold (≈45.57°)
+
+local SV_ACCELERATE = 10
+local SV_AIRACCELERATE = 10
+local SV_FRICTION = 4
+local SV_STOPSPEED = 6.25 -- 100 hu/s
+local AIR_SPEED_CAP = 1.875 -- 30 hu/s
+
+local MAX_GROUND_SPEED = 20 -- sv_maxspeed = 320 hu/s
+local JUMP_SPEED = 22 -- bumped from Source's 16.77 for a higher jump
+local SOURCE_GRAVITY = 55 -- bumped from Source's 37.5 for a snappier fall
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VectorLib = require(ReplicatedStorage.Shared.Libraries.VectorLib)
+local RunService = game:GetService("RunService")
 local CalculateRawMoveVector = shared.Import "CalculateRawMoveVector"
 local ImGizmo = shared.Import "ImGizmo"
 
 local Camera = workspace.CurrentCamera
 local LocalPlayer = game.Players.LocalPlayer
 
-local PlayerModule, InputUtil, Iris
+local CAMERA_OFFSET_BIND = "MovementController_CameraOffset"
+
+local PlayerModule, Iris
 function Controller:Init()
 	PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule"))
-	InputUtil = require(ReplicatedStorage.Shared.Libraries.InputUtil)
 	Iris = shared.Import("Iris")
 
-	Controller.Force = Vector3.new()
 	Controller.Controls = PlayerModule:GetControls()
 	Controller._Debug = false
-	
-	-- crouch input
-	InputUtil:BindAction("Slide", function(_, State)
-		Controller.WishSlide = State == Enum.UserInputState.Begin
-	end, true, Enum.KeyCode.C)
-	
-	Controller.LastJump = tick()
 
 	Controller.Signals.CharacterAdded(LocalPlayer.Character)
 
-	-- IRIS
 	Iris:Connect(function()
-        local windowSize = Iris.State(Vector2.new(120, 60))
-        local windowPos = Iris.State(Vector2.new(300, 0))
-        -- Tool manager window
-        Iris.Window({"Movement Manager"}, {size = windowSize, position = windowPos})
+		local windowSize = Iris.State(Vector2.new(120, 60))
+		local windowPos = Iris.State(Vector2.new(300, 0))
+		Iris.Window({"Movement Manager"}, {size = windowSize, position = windowPos})
 
-        if Iris.Button("Toggle Debug").clicked() then
-            Controller._Debug = not Controller._Debug
-        end
+		if Iris.Button("Toggle Debug").clicked() then
+			Controller._Debug = not Controller._Debug
+		end
 
-	    Iris.End()
-    end)
+		Iris.End()
+	end)
 end
 
-function Controller.Signals.CharacterAdded( Character:Model )
+function Controller.Signals.CharacterAdded(Character: Model)
 	if not Character then
 		LocalPlayer.CharacterAdded:Wait()
 		Character = LocalPlayer.Character
 		assert(Character, "No Character")
 	end
-	Controller.Force = Vector3.new()
 	Controller.Character = Character
 	Controller.Collider = Character:WaitForChild("Collider")
 	Controller.ForceInstance = Character:WaitForChild("Force")
-	
-	-- set camera
+	Controller.VelocityInstance = Character:WaitForChild("Velocity")
+
+	-- Resize hull to Source-style proportions. Shift up by half the height delta so
+	-- feet don't sink into the floor on resize.
+	local oldSize = Controller.Collider.Size
+	Controller.Collider.Size = HULL_SIZE
+	Controller.Collider.Position += Vector3.new(0, (HULL_SIZE.Y - oldSize.Y) / 2, 0)
+
+	-- Zero friction/elasticity so the solver doesn't fight our velocity writes on contact.
+	local existing = Controller.Collider.CustomPhysicalProperties
+	Controller.Collider.CustomPhysicalProperties = PhysicalProperties.new(
+		existing and existing.Density or 1,
+		0,
+		0,
+		100,
+		100
+	)
+
+	-- We manage Y ourselves via the LinearVelocity; cancel solver gravity.
+	Controller.ForceInstance.Force = Vector3.new(0, workspace.Gravity * Controller.Collider.AssemblyMass, 0)
+
+	pcall(function()
+		Controller.Collider:SetNetworkOwner(LocalPlayer)
+	end)
+
 	task.spawn(function()
 		Camera.CameraType = Enum.CameraType.Custom
 		Camera:GetPropertyChangedSignal("CameraType"):Wait()
 		Camera.CameraType = Enum.CameraType.Custom
 	end)
-	
-	-- TODO: refactor this hack
-	Camera.CameraSubject = Character.Collider
+
+	Camera.CameraSubject = Controller.Collider
+
+	-- Run AFTER Roblox's built-in camera update and shift the camera up by our eye
+	-- offset. No-Humanoid equivalent of Humanoid.CameraOffset.
+	pcall(function() RunService:UnbindFromRenderStep(CAMERA_OFFSET_BIND) end)
+	RunService:BindToRenderStep(CAMERA_OFFSET_BIND, Enum.RenderPriority.Camera.Value + 1, function()
+		if not Controller.Collider or not Controller.Collider.Parent then return end
+		local size = Controller.Collider.Size
+		Camera.CFrame = Camera.CFrame + Vector3.new(0, size.Y / 2 - EYE_OFFSET_FROM_TOP, 0)
+	end)
 end
 
-function Controller.Signals.Update( DeltaTime )
-	Controller.Force = Vector3.new()
+-- Source: ApplyFriction. Acts only on the horizontal component.
+local function ApplyFriction(v: Vector3, dt: number): Vector3
+	local horizontal = Vector3.new(v.X, 0, v.Z)
+	local speed = horizontal.Magnitude
+	if speed < 0.1 then
+		return Vector3.new(0, v.Y, 0)
+	end
+	local control = math.max(speed, SV_STOPSPEED)
+	local drop = control * SV_FRICTION * dt
+	local newspeed = math.max(speed - drop, 0)
+	local scale = newspeed / speed
+	return Vector3.new(v.X * scale, v.Y, v.Z * scale)
+end
+
+-- Source: Accelerate (ground). Straight from gamemovement.cpp.
+local function Accelerate(v: Vector3, wishdir: Vector3, wishspeed: number, accel: number, dt: number): Vector3
+	if wishdir.Magnitude < 0.001 then return v end
+	local currentspeed = v:Dot(wishdir)
+	local addspeed = wishspeed - currentspeed
+	if addspeed <= 0 then return v end
+	local accelspeed = math.min(accel * dt * wishspeed, addspeed)
+	return v + wishdir * accelspeed
+end
+
+-- Source: AirAccelerate. wishspd is clamped to AIR_SPEED_CAP for the addspeed cap,
+-- but accelspeed uses the unclamped wishspeed. This is what enables air-strafing —
+-- you can redirect velocity freely without adding raw speed.
+local function AirAccelerate(v: Vector3, wishdir: Vector3, wishspeed: number, accel: number, dt: number): Vector3
+	if wishdir.Magnitude < 0.001 then return v end
+	local wishspd = math.min(wishspeed, AIR_SPEED_CAP)
+	local currentspeed = v:Dot(wishdir)
+	local addspeed = wishspd - currentspeed
+	if addspeed <= 0 then return v end
+	local accelspeed = math.min(accel * dt * wishspeed, addspeed)
+	return v + wishdir * accelspeed
+end
+
+-- Project a vector onto the slope's tangent plane so movement follows the surface.
+local function ClipVelocityToSlope(v: Vector3, normal: Vector3): Vector3
+	if normal.Y > 0.999 then
+		return Vector3.new(v.X, 0, v.Z)
+	end
+	return v - normal * v:Dot(normal)
+end
+
+function Controller.Signals.Update(DeltaTime: number)
+	if not Controller.Collider then return end
+
 	Controller.WishJump = Controller.Controls.activeController.isJumping
 	Controller.WishVector = Controller.Controls:GetMoveVector()
 	Controller.MoveVector = CalculateRawMoveVector(Controller.WishVector)
 	Controller.MoveVector = Controller.MoveVector.Magnitude > 0 and Controller.MoveVector.Unit or Vector3.zero
-	Controller.PreviousVelocity = Controller.Collider.AssemblyLinearVelocity * Vector3.new(1,0,1)
-	Controller.Jumped = false
-	
-	--
-	Controller:DoJump(DeltaTime)
-	Controller:DoGroundCast(55)
-	Controller:DoMove()
-	Controller:DoSlide()
-	Controller:DoSlopeCompensation(55)
-	
-	--
-	Controller.ForceInstance.Force = Controller.Force
-	
-	Controller.WasWishSlide = Controller.WishSlide
-	
-	-- debug
+
+	Controller:DoGroundCast()
+
+	local velocity = Controller.Collider.AssemblyLinearVelocity
+	velocity = Controller:DoJump(velocity)
+	velocity = Controller:DoMove(velocity, DeltaTime)
+	velocity = Controller:DoStairStep(velocity, DeltaTime)
+	velocity = Controller:DoGravity(velocity, DeltaTime)
+
+	Controller.VelocityInstance.VectorVelocity = velocity
+	Controller.ForceInstance.Force = Vector3.new(0, workspace.Gravity * Controller.Collider.AssemblyMass, 0)
+
 	if Controller._Debug then
-		local Origin = Controller.Collider.Position + Vector3.yAxis * Controller.Collider.Size.Y/2
+		local velOrigin = Controller.Collider.Position + Vector3.yAxis * (Controller.Collider.Size.Y / 2)
 		ImGizmo.PushProperty("Color3", Color3.new(0, 0.615686, 1))
-		ImGizmo.Arrow:Draw(Origin, Origin+Controller.ForceInstance.Force*0.001, 0.2, 0.5, 10)
+		ImGizmo.Arrow:Draw(velOrigin, velOrigin + velocity * 0.1, 0.1, 0.3, 10)
+
+		ImGizmo.PushProperty("Color3", Color3.new(1, 1, 0))
+		ImGizmo.Box:Draw(Controller.Collider.CFrame, Controller.Collider.Size, false)
 	end
 end
 
-
--- main features
-
-function Controller:DoGroundCast(MaxAngle)
+-- Source's CategorizePosition: AABB hull straight down. Flat bottom → no edge artifacts.
+function Controller:DoGroundCast()
 	local Params = RaycastParams.new()
 	Params.FilterType = Enum.RaycastFilterType.Exclude
 	Params.IgnoreWater = true
 	Params.FilterDescendantsInstances = {Controller.Character}
 
-	local Origin = Controller.Collider.Position
-	local Direction = -Vector3.yAxis * (Controller.Collider.Size.Y/2 + 0.15)
+	local colliderSize = Controller.Collider.Size
+	local castSize = Vector3.new(colliderSize.X * 0.99, 0.05, colliderSize.Z * 0.99)
+	-- Start the cast box ABOVE the collider's bottom face. If it starts exactly on
+	-- the floor (which happens when resting after a landing), Blockcast returns nil
+	-- because it begins in contact with geometry.
+	local CAST_LIFT = 0.15
+	local castOrigin = CFrame.new(Controller.Collider.Position - Vector3.new(0, colliderSize.Y / 2 - CAST_LIFT - 0.025, 0))
+	local castDirection = Vector3.new(0, -(CAST_LIFT + GROUND_SNAP_DISTANCE), 0)
 
-	
-	Controller.GroundCastResult = workspace:Spherecast(Origin, Controller.Collider.Size.X/2, Direction, Params) 
+	Controller.GroundCastResult = workspace:Blockcast(castOrigin, castSize, castDirection, Params)
 	Controller.WasGrounded = Controller.Grounded
-	Controller.Grounded = Controller.GroundCastResult ~= nil
-	
-	-- only grounded if within angle
-	Controller.Slipping	 = false
+	Controller.Grounded = false
+	Controller.NormalDotProduct = 1
+
 	if Controller.GroundCastResult then
-		local SlopeAngle = math.deg(math.acos(Controller.GroundCastResult.Normal:Dot(Vector3.yAxis)))
-		if SlopeAngle > MaxAngle then
-			Controller.Slipping = true	
+		local dot = Controller.GroundCastResult.Normal:Dot(Vector3.yAxis)
+		Controller.NormalDotProduct = dot
+		-- Source: surfaces steeper than ~45.57° aren't ground — you slide off them.
+		if dot >= MIN_GROUND_NORMAL_Y then
+			Controller.Grounded = true
 		end
 	end
-	
-	Controller.NormalDotProduct = 1
-	
-	if Controller.GroundCastResult  then
-		Controller.NormalDotProduct = Controller.GroundCastResult.Normal:Dot(Vector3.yAxis)
-	end
-	
-	-- debug
+
 	if Controller._Debug then
-		ImGizmo.PushProperty("Color3", Controller.GroundCastResult and Color3.new(0.1, 1, 0.1) or Color3.new(1, 0.1, 0.1))
-		ImGizmo.Arrow:Draw(Origin, Controller.GroundCastResult and Controller.GroundCastResult.Position or Origin + Direction, 0.2, 0.5, 10)
-		
-		if Controller.NormalDotProduct ~= 1 then
-			ImGizmo.PushProperty("Color3", Color3.new(1, Controller.NormalDotProduct, 0))
-			ImGizmo.Arrow:Draw(Controller.GroundCastResult.Position, Controller.GroundCastResult.Position + Controller.GroundCastResult.Normal*1.5, 0.06, 0.2, 10)
+		local castStart = castOrigin.Position
+		local castEnd = castStart + castDirection
+		ImGizmo.PushProperty("Color3", Controller.Grounded and Color3.new(0.1, 1, 0.1) or Color3.new(1, 0.1, 0.1))
+		ImGizmo.Arrow:Draw(castStart, castEnd, 0.08, 0.2, 10)
+
+		ImGizmo.PushProperty("Color3", Controller.Grounded and Color3.new(0.1, 1, 0.1) or Color3.new(1, 0.1, 0.1))
+		ImGizmo.Box:Draw(CFrame.new(castEnd), castSize, false)
+
+		if Controller.GroundCastResult then
+			local normalOrigin = Controller.Collider.Position - Vector3.yAxis * (colliderSize.Y / 2)
+			local clampedDot = math.clamp(Controller.NormalDotProduct, 0, 1)
+			ImGizmo.PushProperty("Color3", Color3.new(1, clampedDot, 0))
+			ImGizmo.Arrow:Draw(
+				normalOrigin,
+				normalOrigin + Controller.GroundCastResult.Normal * 1.5,
+				0.06, 0.2, 10
+			)
 		end
 	end
 end
 
-function Controller:DoJump(DeltaTime)
+function Controller:DoJump(velocity)
 	Controller.Jump = false
-	if not Controller.Grounded then return end
-	if not Controller.WishJump then return end
-	if Controller.Slipping then return end
-	if tick()-Controller.LastJump < .3 then return end
-	Controller.LastJump = tick()
-	Controller.Jumped = true
+	if not Controller.Grounded then return velocity end
+	if not Controller.WishJump then return velocity end
 
 	Controller.Jump = true
+	Controller.Grounded = false
 
-	local Velocity = Controller.Collider.AssemblyLinearVelocity
-	
-	Controller:VelocityImpulse(Vector3.new(
-		Velocity.X,
-		50,
-		Velocity.Z
-	))
+	return Vector3.new(velocity.X, JUMP_SPEED, velocity.Z)
 end
 
-
-function Controller:DoMove(AccelForce, MaxSped)
-	if Controller.Sliding then return end
-	
-	local MaxSpeed, AccelForce, DragCoeff
+function Controller:DoMove(velocity, dt)
+	local wishdir = Controller.MoveVector
 
 	if Controller.Grounded then
-		MaxSpeed = 20
-		AccelForce = 100
-		DragCoeff = AccelForce / MaxSpeed
-	else
-		local Alignment = 1 - Controller.MoveVector:Dot(Controller.PreviousVelocity)
-		Alignment = math.clamp(Alignment, 0, 1)
-
-		MaxSpeed = 50
-		AccelForce = 0 + Alignment * (300 + Controller.PreviousVelocity.Magnitude*10)
-		DragCoeff = 0
-	end
-	
-	-- apply movement force
-	local MoveForce = Controller.MoveVector * (AccelForce)
-
-	Controller:Push(MoveForce, DragCoeff)
-end
-
-function Controller:Drag(DragCoeff)
-	-- compute drag
-	local Velocity = Controller.Collider.AssemblyLinearVelocity
-	Velocity *= Vector3.new(1, 0, 1) -- isolate horizontal velocity
-
-	local Direction = VectorLib.SafeUnit(Velocity)
-	local Speed = Velocity.Magnitude
-	local DragForce = -Direction * (Speed * DragCoeff)
-
-	-- project drag along slope too, so it feels natural on inclines
-	if Controller.Grounded and Controller.GroundCastResult then
-		DragForce = Controller:ProjectForceOntoGround(DragForce, Controller.GroundCastResult.Normal)
-	end
-
-	Controller.Force += DragForce
-end
-
--- Cancels out gravity along the slope to prevent sliding
-function Controller:DoSlopeCompensation(MaxAngle: number)
-	if not Controller.Grounded or not Controller.GroundCastResult then return end
-
-	local Normal = Controller.GroundCastResult.Normal
-	local SlopeAngle = math.deg(math.acos(Normal:Dot(Vector3.yAxis)))
-	if SlopeAngle > MaxAngle then return end
-	if SlopeAngle <= 3 then return end -- no compensation needed
-
-	-- Ensure gravity points downward
-	local Gravity = Vector3.new(0, -workspace.Gravity, 0)
-
-	-- Tangent component of gravity along slope
-	local GravityAlongSurface = Gravity - Normal * (Gravity:Dot(Normal))
-
-	-- Apply opposite force to cancel sliding
-	local CompensationForce = -GravityAlongSurface * Controller.Collider.AssemblyMass
-	Controller.Force += CompensationForce
-
-	-- Debug
-	if Controller._Debug then
-		local Origin = Controller.Collider.Position + Vector3.yAxis * (Controller.Collider.Size.Y / 2)
-		local Direction = VectorLib.SafeUnit(CompensationForce)
-		ImGizmo.PushProperty("Color3", Color3.new(1, 0, 0))
-		ImGizmo.Arrow:Draw(Origin, Origin + Direction * 3, 0.1, 0.3, 10)
-	end
-end
-
-function Controller:DoSlide()
-	local Force = 0
-	
-	if Controller.WishSlide and not Controller.WasWishSlide and Controller.Sliding then -- cancel slide
-		Controller.Sliding = false
-		Controller:_StopSlide()
-		return
-	end
-	
-	-- slide start
-	if not Controller.Sliding and Controller.WishSlide and not Controller.WasWishSlide and Controller.PreviousVelocity.Magnitude > MIN_SLIDE_SPEED then
-		-- start slide
-		Controller.Sliding = true
-		Controller:_StartSlide()
-		
-		if Controller.Grounded then
-			-- slide boost
-			local SlopeBoost = Controller.NormalDotProduct * 1000
-			
-			Force = 600
+		velocity = ApplyFriction(velocity, dt)
+		velocity = Accelerate(velocity, wishdir, MAX_GROUND_SPEED, SV_ACCELERATE, dt)
+		if Controller.GroundCastResult then
+			velocity = ClipVelocityToSlope(velocity, Controller.GroundCastResult.Normal)
 		end
-	end
-	
-	if not Controller.Sliding then return end
-	
-	if Controller.Jumped then
-		Force = 1000 -- slide jump cancel boost
-		Controller.Sliding = false
-		Controller:_StopSlide()
-		return
-	end
-	
-	-- stop sliding if going too slow
-	if Controller.PreviousVelocity.Magnitude < MIN_SLIDE_SPEED then
-		Controller.Sliding = false
-		Controller:_StopSlide()
-		return
-	end
-	
-	-- move force
-	Force += 20 * math.abs(1 - Controller.MoveVector:Dot(Controller.PreviousVelocity.Unit)) -- dont accelerate into it
-	
-	local MoveForce = Controller.MoveVector * Force
-	Controller:Push(MoveForce, Controller.Grounded and .3 or 0)
-end
-
-function Controller:_StartSlide()
-	Controller.Collider.Size = Vector3.new(1.429, 4.75/2, 1.429)
-	Controller.Collider.Position -= Vector3.new(0, 4.75/4, 0)
-
-end
-
-function Controller:_StopSlide()
-	Controller.Collider.Size = Vector3.new(1.429, 4.75, 1.429)
-	Controller.Collider.Position += Vector3.new(0, 4.75/4, 0) -- shitty hack (FIX LATER)
-end
-
---
-
--- move player with drag calculated
-function Controller:Push(Force, DragCoeff)
-	if Controller.Grounded then
-		Force = Controller:ProjectForceOntoGround(Force, Controller.GroundCastResult.Normal)
+	else
+		velocity = AirAccelerate(velocity, wishdir, MAX_GROUND_SPEED, SV_AIRACCELERATE, dt)
 	end
 
-	Controller.Force += Force
+	return velocity
+end
 
-	-- apply drag
-	Controller:Drag(DragCoeff)
+-- We cancel solver gravity and apply Source's exact value ourselves.
+function Controller:DoGravity(velocity, dt)
+	if Controller.Grounded then return velocity end
+	return velocity - Vector3.new(0, SOURCE_GRAVITY * dt, 0)
+end
 
-	-- Debug: visualize the rotated (projected) move direction
-	if Controller._Debug then
-		local Origin = Controller.Collider.Position + Vector3.yAxis * (Controller.Collider.Size.Y / 2)
-		local RotatedDir = VectorLib.SafeUnit(Force)
+-- Source's StepMove: if a riser is in the way and the path is clear at step height
+-- with ground waiting on the other side, lift the collider so the solver carries it over.
+function Controller:DoStairStep(velocity, dt)
+	if not Controller.Grounded then return velocity end
 
-		ImGizmo.PushProperty("Color3", Color3.new(1, 0.8, 0.2)) -- gold/yellow for visibility
-		ImGizmo.Arrow:Draw(Origin, Origin + RotatedDir * 3, 0.1, 0.3, 10)
+	local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
+	if horizontal.Magnitude < 0.5 then return velocity end
 
-		ImGizmo.PushProperty("Color3", Color3.new(0.305882, 1, 0.254902))
-		ImGizmo.Arrow:Draw(Origin, Origin + Controller.Force * Vector3.new(.1, 0, .1), 0.1, 0.3, 10)
+	local Params = RaycastParams.new()
+	Params.FilterType = Enum.RaycastFilterType.Exclude
+	Params.IgnoreWater = true
+	Params.FilterDescendantsInstances = {Controller.Character}
+
+	local size = Controller.Collider.Size
+	local origin = Controller.Collider.CFrame
+	local moveDelta = horizontal.Unit * math.max(horizontal.Magnitude * dt, 0.3)
+
+	local forwardHit = workspace:Blockcast(origin, size, moveDelta, Params)
+	if not forwardHit then return velocity end
+	if math.abs(forwardHit.Normal.Y) > 0.2 then return velocity end
+
+	local liftedOrigin = origin + Vector3.new(0, STEP_HEIGHT, 0)
+	local liftedHit = workspace:Blockcast(liftedOrigin, size, moveDelta, Params)
+	if liftedHit then return velocity end
+
+	local landCFrame = liftedOrigin + moveDelta
+	local landHit = workspace:Blockcast(landCFrame, size, Vector3.new(0, -(STEP_HEIGHT + 0.1), 0), Params)
+	if not landHit then return velocity end
+	if landHit.Normal:Dot(Vector3.yAxis) < 0.7 then return velocity end
+
+	local liftAmount = STEP_HEIGHT - landHit.Distance + 0.05
+	if liftAmount > 0 and liftAmount <= STEP_HEIGHT then
+		Controller.Collider.CFrame = origin + Vector3.new(0, liftAmount, 0)
 	end
+
+	return velocity
 end
-
-function Controller:VelocityImpulse(Velocity:Vector3)
-	local DeltaVelocity = Velocity - Controller.Collider.AssemblyLinearVelocity
-	local Impulse = Controller.Collider.AssemblyMass	 * DeltaVelocity
-
-	Controller.Collider:ApplyImpulse(Impulse)
-end
-
-function Controller:CalculateForce(InitialVelocity:Vector3, FinalVelocity:Vector3, Mass:number, DeltaTime:number):Vector3
-	-- Calculate the change in velocity
-	local DeltaVelocity = FinalVelocity - InitialVelocity
-
-	-- Calculate acceleration
-	local Acceleration = DeltaVelocity / DeltaTime
-
-	-- Calculate force
-	local Force = Mass * Acceleration
-
-	return Force
-end
-
--- Projects a force vector so it follows the slope
-function Controller:ProjectForceOntoGround(Force: Vector3, Normal: Vector3): Vector3
-	-- If the normal is nil or perfectly vertical, return the original force
-	if not Normal or Normal:FuzzyEq(Vector3.yAxis) then
-		return Force
-	end
-
-	-- Remove the component of Force that goes into the surface
-	-- Equivalent to projecting onto the tangent plane
-	local Projected = Force - Normal * (Force:Dot(Normal))
-	return Projected
-end
-
 
 return Controller
