@@ -151,12 +151,17 @@ function ToolManager:AddTool( ToolName:string )
     local ToolFolder = ReplicatedStorage.Weapons:FindFirstChild(ToolName)
     assert(ToolFolder, "ToolManager.AddTool - ToolFolder is nil")
     local ToolData = require(ToolFolder:FindFirstChildOfClass("ModuleScript"))
-    local ToolObject = ClassMap[ToolData.Type].new(ToolFolder)
+
+    -- ClassMap holds legacy subclasses (Firearm). Tools that declare their
+    -- behavior via Data.Components (e.g. the M67 grenade) don't need a
+    -- subclass — fall through to ToolBase directly.
+    local ToolClass = ClassMap[ToolData.Type] or ToolBase
+    local ToolObject = ToolClass.new(ToolFolder)
     if not ToolObject then
         warn("ToolManager.AddTool - ToolObject is nil for " .. ToolName)
         return
     end
-    
+
     self.Tools[ToolName] = ToolObject
 
     return ToolObject
