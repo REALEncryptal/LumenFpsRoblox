@@ -463,6 +463,40 @@ function ToolBase:GetComponent(Name: string)
     return self.Components[Name]
 end
 
+-- HUD CONTRACT
+--
+-- Returns a flat table describing what this tool wants the WeaponUI to render.
+-- Shape:
+--   icon       string?           -- HudImage assetId for the tool's portrait
+--   primary    (number|string)?  -- main readout (ammo count, grenade count)
+--   secondary  (number|string)?  -- secondary readout (stored ammo, fuse time)
+--   mode       string?           -- "ammo" | "count" | "timer" | nil; nil hides ammo block
+--
+-- ToolBase merges contributions from every Component that implements
+-- :GetHudContribution(). Components later in ComponentList override earlier
+-- ones for the same field — order matches AddComponent registration order.
+function ToolBase:GetHudState()
+    local state = {
+        icon = self.Data.HudImage,
+        primary = nil,
+        secondary = nil,
+        mode = nil,
+    }
+
+    for _, component in ipairs(self.ComponentList) do
+        if not component.GetHudContribution then continue end
+        local contribution = component:GetHudContribution()
+        if not contribution then continue end
+
+        if contribution.icon ~= nil then state.icon = contribution.icon end
+        if contribution.primary ~= nil then state.primary = contribution.primary end
+        if contribution.secondary ~= nil then state.secondary = contribution.secondary end
+        if contribution.mode ~= nil then state.mode = contribution.mode end
+    end
+
+    return state
+end
+
 -- BINDINGS
 
 -- Walks every Component's declared `Bindings` table and registers each action

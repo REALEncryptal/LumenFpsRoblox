@@ -43,17 +43,18 @@ function WeaponUI:WatchTool(ToolObject: any?)
         WeaponUI:SetAmmo("", "")
         return
     end
-    
+
     WeaponUI.ToolObject = ToolObject
-    WeaponUI:SetIcon(ToolObject.Data.HudImage)
 
-    if ToolObject.Type ~= "Firearm" then return end
+    local hud = ToolObject:GetHudState()
+    WeaponUI:SetIcon(hud.icon or "")
 
-    if ToolObject.State.Reloading then
-        WeaponUI:SetAmmo("--", ToolObject.State.StoredAmmo)
-    else
-        WeaponUI:SetAmmo(ToolObject.State.Ammo, ToolObject.State.StoredAmmo)
+    if hud.mode == nil then
+        WeaponUI:SetAmmo("", "")
+        return
     end
+
+    WeaponUI:SetAmmo(hud.primary, hud.secondary)
 end
 
 function WeaponUI:SetIcon(ImageId:string?)

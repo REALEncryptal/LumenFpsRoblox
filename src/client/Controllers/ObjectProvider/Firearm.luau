@@ -97,6 +97,18 @@ function Firearm.new(ToolFolder: Folder)
     return self
 end
 
+-- Temporary HUD contract implementation. Phase 6 replaces this with an
+-- AmmoStore component that contributes the same fields.
+function Firearm:GetHudState()
+    local reloading = self.State.Reloading
+    return {
+        icon = self.Data.HudImage,
+        primary = reloading and "--" or self.State.Ammo,
+        secondary = self.State.StoredAmmo,
+        mode = "ammo",
+    }
+end
+
 function Firearm:CreateDebug(Iris)
     local YesText = "<font color='rgb(0, 255, 0)'>Yes</font>"
     local NoText = "<font color='rgb(255, 0, 0)'>No</font>"
