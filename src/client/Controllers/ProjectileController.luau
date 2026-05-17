@@ -20,17 +20,27 @@ local LocalPlayer = Players.LocalPlayer
 
 local GRENADE_FUSE = 5
 
-local Hindsight, Event
+local Hindsight, Event, ProjectileDebugController
 local World
 local BulletsFolder: Instance
 local CharactersFolder: Instance
 
+-- Per-projectile-type visual templates. Hindsight clones whichever one is
+-- passed as `visual` on each cast into BulletsFolder. Add entries here as
+-- more projectile types get visual assets under ReplicatedStorage.Assets.
+local Visuals: { [string]: PVInstance } = {}
+
 function Controller:Init()
     Hindsight = shared.Import("Hindsight")
     Event = shared.Import("Event")
+    ProjectileDebugController = shared.Import("ProjectileDebugController")
 
     BulletsFolder = workspace:WaitForChild("Bullets")
     CharactersFolder = workspace:WaitForChild("Characters")
+
+    local assets = ReplicatedStorage:WaitForChild("Assets")
+    local projectileAssets = assets:WaitForChild("Projectiles")
+    Visuals.Bullet = projectileAssets:WaitForChild("Tracer") :: PVInstance
 
     local definitionsModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Projectiles")
 
@@ -56,6 +66,7 @@ function Controller:Init()
             origin = origin,
             direction = direction,
             timestamp = workspace:GetServerTimeNow(),
+            visual = Visuals[projectileType],
         })
     end)
 
@@ -68,6 +79,7 @@ function Controller:Init()
             direction = direction,
             timestamp = workspace:GetServerTimeNow(),
             modifier = { lifetime = remainingFuse },
+            visual = Visuals[projectileType],
         })
     end)
 end
@@ -90,7 +102,12 @@ function Controller:Cast(projectileType: string, origin: Vector3, direction: Vec
             origin = origin,
             direction = direction,
             timestamp = timestamp,
+            visual = Visuals[projectileType],
         })
+    end
+
+    if ProjectileDebugController then
+        ProjectileDebugController:RecordShot(projectileType, origin, direction)
     end
 end
 
@@ -117,7 +134,12 @@ function Controller:Throw(projectileType: string, origin: Vector3, direction: Ve
             direction = direction,
             timestamp = timestamp,
             modifier = { lifetime = remainingFuse },
+            visual = Visuals[projectileType],
         })
+    end
+
+    if ProjectileDebugController then
+        ProjectileDebugController:RecordShot(projectileType, origin, direction)
     end
 end
 
