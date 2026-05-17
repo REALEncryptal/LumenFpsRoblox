@@ -103,6 +103,17 @@ local function ValidatePayload(Player: Player, Payload): boolean
 
     if not ValidateOrigin(Player, Payload.Origin) then return false end
 
+    -- Optional two-ray visual fields. Visual origin must also pass the
+    -- head-proximity check so a tampered client can't broadcast tracers that
+    -- visually originate from across the map.
+    if Payload.VisualOrigin ~= nil then
+        if typeof(Payload.VisualOrigin) ~= "Vector3" then return false end
+        if not ValidateOrigin(Player, Payload.VisualOrigin) then return false end
+    end
+    if Payload.VisualDirection ~= nil and typeof(Payload.VisualDirection) ~= "Vector3" then
+        return false
+    end
+
     return true
 end
 
@@ -113,8 +124,18 @@ function Controller:HandleFire(Player: Player, Payload)
     local RewindTime = Payload.Timestamp - RewindOffset
 
     -- Broadcast to other clients before casting so their visuals start in
-    -- parallel with the server's authoritative resolution.
-    Event:FireAllClients("ProjectileFired", Player, Payload.Type, Payload.Origin, Payload.Direction)
+    -- parallel with the server's authoritative resolution. Visual origin/dir
+    -- are forwarded so remote tracers also leave the caster's muzzle (two-ray
+    -- dual origin); they're nil when the caster didn't supply them.
+    Event:FireAllClients(
+        "ProjectileFired",
+        Player,
+        Payload.Type,
+        Payload.Origin,
+        Payload.Direction,
+        Payload.VisualOrigin,
+        Payload.VisualDirection
+    )
 
     World:cast({
         caster = Player,

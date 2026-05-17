@@ -58,13 +58,15 @@ function Controller:Init()
 
     -- Render other players' shots locally. The caster runs its own visual cast
     -- before sending to the server, so it skips its own broadcasted echo.
-    Event:Listen("ProjectileFired", function(Caster, ProjectileType, Origin, Direction)
+    -- VisualOrigin/VisualDirection are present when the caster used dual-origin
+    -- (tracer from muzzle); fall back to the hit-resolution ray otherwise.
+    Event:Listen("ProjectileFired", function(Caster, ProjectileType, Origin, Direction, VisualOrigin, VisualDirection)
         if Caster == LocalPlayer then return end
         World:cast({
             caster = Caster,
             type = ProjectileType,
-            origin = Origin,
-            direction = Direction,
+            origin = VisualOrigin or Origin,
+            direction = VisualDirection or Direction,
             timestamp = workspace:GetServerTimeNow(),
             visual = Visuals[ProjectileType],
         })
@@ -85,13 +87,29 @@ function Controller:Init()
 end
 
 -- Hitscan/projectile fire — used by HitscanFire-style components.
-function Controller:Cast(ProjectileType: string, Origin: Vector3, Direction: Vector3)
+--
+-- Origin/Direction is the hit-resolution ray (typically camera-space — must
+-- pass the server's head-proximity validation). VisualOrigin/VisualDirection
+-- are the optional tracer-only override used for the two-ray dual-origin
+-- pattern: keep aim accurate to the crosshair, but render the bullet leaving
+-- the gun muzzle. Server broadcasts these so other clients render the same.
+function Controller:Cast(
+    ProjectileType: string,
+    Origin: Vector3,
+    Direction: Vector3,
+    VisualOrigin: Vector3?,
+    VisualDirection: Vector3?
+)
     local Timestamp = workspace:GetServerTimeNow()
+    local VisOrigin = VisualOrigin or Origin
+    local VisDirection = VisualDirection or Direction
 
     Event:FireServer("FireProjectile", {
         Type = ProjectileType,
         Origin = Origin,
         Direction = Direction,
+        VisualOrigin = VisualOrigin,
+        VisualDirection = VisualDirection,
         Timestamp = Timestamp,
     })
 
@@ -99,14 +117,16 @@ function Controller:Cast(ProjectileType: string, Origin: Vector3, Direction: Vec
         World:cast({
             caster = LocalPlayer,
             type = ProjectileType,
-            origin = Origin,
-            direction = Direction,
+            origin = VisOrigin,
+            direction = VisDirection,
             timestamp = Timestamp,
             visual = Visuals[ProjectileType],
         })
     end
 
     if ProjectileDebugController then
+        -- Debug overlay forward-simulates the *server's* trajectory, so feed it
+        -- the hit-resolution ray (camera), not the muzzle visual.
         ProjectileDebugController:RecordShot(ProjectileType, Origin, Direction)
     end
 end
