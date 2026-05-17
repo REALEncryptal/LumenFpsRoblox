@@ -39,14 +39,14 @@ function ToolManager.new( Character:Model )
     local OffsetEditorEnabled = false
 
     self.Trove:Add(Iris:Connect(function()
-        local windowSize = Iris.State(Vector2.new(240, 580))
-        local windowPos = Iris.State(Vector2.new(10, 0))
-        local editorWindowSize = Iris.State(Vector2.new(300, 125))
-        local editorWindowPos = Iris.State(Vector2.new(260, 0))
+        local WindowSize = Iris.State(Vector2.new(240, 580))
+        local WindowPos = Iris.State(Vector2.new(10, 0))
+        local EditorWindowSize = Iris.State(Vector2.new(300, 125))
+        local EditorWindowPos = Iris.State(Vector2.new(260, 0))
 
 
         -- Tool manager window
-        Iris.Window({"Tool Manager"}, {size = windowSize, position = windowPos})
+        Iris.Window({"Tool Manager"}, {size = WindowSize, position = WindowPos})
 
         if Iris.Button("Toggle Offset Editor").clicked() then
             OffsetEditorEnabled = not OffsetEditorEnabled
@@ -57,7 +57,7 @@ function ToolManager.new( Character:Model )
         end
 
         if OffsetEditorEnabled then
-            Iris.Window({"Offset Editor", nil,nil,true,true}, {size = editorWindowSize, position = editorWindowPos})
+            Iris.Window({"Offset Editor", nil,nil,true,true}, {size = EditorWindowSize, position = EditorWindowPos})
 
             local Args = {
                 "X",

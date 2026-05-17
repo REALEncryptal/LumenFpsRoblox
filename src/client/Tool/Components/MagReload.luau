@@ -30,19 +30,19 @@ MagReload.__index = MagReload
 MagReload.Bindings = {
     Reload = {
         Inputs = {Enum.KeyCode.R},
-        OnState = function(self, state)
-            if state ~= Enum.UserInputState.Begin then return end
+        OnState = function(self, State)
+            if State ~= Enum.UserInputState.Begin then return end
             self:WishReload()
         end,
     },
 }
 
-function MagReload.new(tool, config)
+function MagReload.new(Tool, Config)
     local self = setmetatable({}, MagReload)
-    self.Tool = tool
-    self.Config = config
-    self.AnimationName = config.AnimationName or "Reload"
-    self.MagInMarker = config.MagInMarker or "MagIn"
+    self.Tool = Tool
+    self.Config = Config
+    self.AnimationName = Config.AnimationName or "Reload"
+    self.MagInMarker = Config.MagInMarker or "MagIn"
 
     self.Reloading = false
     self.WasReloading = false
@@ -51,31 +51,31 @@ function MagReload.new(tool, config)
     return self
 end
 
-function MagReload:_ammoStore()
+function MagReload:_AmmoStore()
     return self.Tool:GetComponent("AmmoStore")
 end
 
-function MagReload:_ads()
+function MagReload:_Ads()
     return self.Tool:GetComponent("ADS")
 end
 
-function MagReload:_animation()
+function MagReload:_Animation()
     return self.Tool.Animations[self.AnimationName]
 end
 
 function MagReload:Init()
-    local animation = self:_animation()
-    if not animation then return end
+    local Animation = self:_Animation()
+    if not Animation then return end
 
     -- MagIn marker is the canonical "mag is now seated" beat in the animation.
     -- That's when ammo actually swaps over.
-    self.Trove:Add(animation:GetMarkerReachedSignal(self.MagInMarker):Connect(function()
+    self.Trove:Add(Animation:GetMarkerReachedSignal(self.MagInMarker):Connect(function()
         self:Complete()
     end))
 
     -- Animation can also stop on its own (track replaced, weight zeroed, etc.).
     -- Make sure Reloading flag clears so the tool can fire again.
-    self.Trove:Add(animation.Stopped:Connect(function()
+    self.Trove:Add(Animation.Stopped:Connect(function()
         self.Reloading = false
     end))
 end
@@ -86,8 +86,8 @@ function MagReload:CanReload(): boolean
     if self.Reloading then return false end
     if not self.Tool.Equipped or self.Tool.Swapping then return false end
 
-    local ammo = self:_ammoStore()
-    return ammo ~= nil and ammo:CanRefill()
+    local Ammo = self:_AmmoStore()
+    return Ammo ~= nil and Ammo:CanRefill()
 end
 
 function MagReload:WishReload()
@@ -96,29 +96,29 @@ function MagReload:WishReload()
     self.Reloading = true
     InteractionController.Enabled = false
 
-    local animation = self:_animation()
-    if animation then animation:Play() end
+    local Animation = self:_Animation()
+    if Animation then Animation:Play() end
     self.Tool:HideCrosshair()
 
-    local crossfadeTime = (self.Config.FovCrossfadeTime or self.Tool.Data.ADSTime * 0.5)
-    CameraController:TweenFOV(SettingsController:GetSetting("FOV"), crossfadeTime)
+    local CrossfadeTime = (self.Config.FovCrossfadeTime or self.Tool.Data.ADSTime * 0.5)
+    CameraController:TweenFOV(SettingsController:GetSetting("FOV"), CrossfadeTime)
 end
 
 -- Fired by the animation's MagIn marker.
 function MagReload:Complete()
     self.Reloading = false
 
-    local ads = self:_ads()
-    if not ads or not ads:IsAiming() then
+    local Ads = self:_Ads()
+    if not Ads or not Ads:IsAiming() then
         self.Tool:ShowCrosshair()
     end
 
-    local ammo = self:_ammoStore()
-    if ammo then ammo:Refill() end
+    local Ammo = self:_AmmoStore()
+    if Ammo then Ammo:Refill() end
 
-    if ads and ads:IsAiming() then
-        local crossfadeTime = (self.Config.FovCrossfadeTime or self.Tool.Data.ADSTime * 0.5)
-        CameraController:TweenFOV(self.Tool.Data.ADSFOV, crossfadeTime)
+    if Ads and Ads:IsAiming() then
+        local CrossfadeTime = (self.Config.FovCrossfadeTime or self.Tool.Data.ADSTime * 0.5)
+        CameraController:TweenFOV(self.Tool.Data.ADSFOV, CrossfadeTime)
     end
 
     InteractionController.Enabled = true
@@ -128,8 +128,8 @@ end
 -- Stops the animation; Reloading flag clears via the Stopped connection.
 function MagReload:Interrupt()
     if not self.Reloading then return end
-    local animation = self:_animation()
-    if animation then animation:Stop() end
+    local Animation = self:_Animation()
+    if Animation then Animation:Stop() end
     self.Reloading = false
 end
 
@@ -150,10 +150,10 @@ function MagReload:Equip()
 end
 
 function MagReload:GetHudContribution()
-    -- Override AmmoStore's primary while a reload is in flight so the UI
+    -- Override AmmoStore's Primary while a reload is in flight so the UI
     -- shows "--" until MagIn lands. Secondary (stored ammo) is unchanged.
     if not self.Reloading then return nil end
-    return { primary = "--" }
+    return { Primary = "--" }
 end
 
 function MagReload:CreateDebug(Iris)

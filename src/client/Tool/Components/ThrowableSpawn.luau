@@ -18,41 +18,41 @@ local Trove = shared.Import("Trove")
 local ThrowableSpawn = {}
 ThrowableSpawn.__index = ThrowableSpawn
 
-function ThrowableSpawn.new(tool, config)
+function ThrowableSpawn.new(Tool, Config)
     local self = setmetatable({}, ThrowableSpawn)
-    self.Tool = tool
-    self.Config = config
-    self.ProjectileType = config.ProjectileType or "Grenade"
+    self.Tool = Tool
+    self.Config = Config
+    self.ProjectileType = Config.ProjectileType or "Grenade"
 
     self.Trove = Trove.new()
     return self
 end
 
 function ThrowableSpawn:Init()
-    local cook = self.Tool:GetComponent("ThrowableCook")
-    if not cook then
+    local Cook = self.Tool:GetComponent("ThrowableCook")
+    if not Cook then
         warn("ThrowableSpawn: tool has no ThrowableCook component; nothing to listen to")
         return
     end
 
-    self.Trove:Add(cook.OnThrow:Connect(function(cookElapsed)
-        self:_spawn(cookElapsed)
+    self.Trove:Add(Cook.OnThrow:Connect(function(CookElapsed)
+        self:_Spawn(CookElapsed)
     end))
 end
 
-function ThrowableSpawn:_spawn(cookElapsed: number)
-    local inventory = self.Tool:GetComponent("ThrowableInventory")
-    if inventory then
-        if not inventory:Has() then return end
-        inventory:Consume()
+function ThrowableSpawn:_Spawn(CookElapsed: number)
+    local Inventory = self.Tool:GetComponent("ThrowableInventory")
+    if Inventory then
+        if not Inventory:Has() then return end
+        Inventory:Consume()
     end
 
-    local camera = workspace.CurrentCamera
+    local Camera = workspace.CurrentCamera
     ProjectileController:Throw(
         self.ProjectileType,
-        camera.CFrame.Position,
-        camera.CFrame.LookVector,
-        cookElapsed
+        Camera.CFrame.Position,
+        Camera.CFrame.LookVector,
+        CookElapsed
     )
 end
 

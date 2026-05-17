@@ -6,7 +6,7 @@
         Idle ──Begin──> Cooking ──End──> Throwing ──(throw anim ends)──> Idle
                             │
                             └──(FuseTime elapsed)──> Throwing  (auto-throw,
-                                                                 cookElapsed=fuse)
+                                                                 CookElapsed=fuse)
 
     Holding MB1 starts the cook timer (plays optional PinPull then Cook
     animations). Releasing MB1 fires the throw — ThrowableSpawn picks it up
@@ -22,7 +22,7 @@
         ThrowAnimationTime number? — how long the throw animation takes before we return to Idle (defaults 0.5)
 
     Other components subscribe to:
-        cook.OnThrow:Connect(function(cookElapsed) ... end)
+        Cook.OnThrow:Connect(function(CookElapsed) ... end)
             — emitted from the Cooking → Throwing transition. ThrowableSpawn
             listens here.
 ]]
@@ -36,26 +36,26 @@ ThrowableCook.__index = ThrowableCook
 ThrowableCook.Bindings = {
     Throw = {
         Inputs = {Enum.UserInputType.MouseButton1},
-        OnState = function(self, state)
-            if state == Enum.UserInputState.Begin then
+        OnState = function(self, State)
+            if State == Enum.UserInputState.Begin then
                 self:Begin()
-            elseif state == Enum.UserInputState.End then
+            elseif State == Enum.UserInputState.End then
                 self:End()
             end
         end,
     },
 }
 
-function ThrowableCook.new(tool, config)
+function ThrowableCook.new(Tool, Config)
     local self = setmetatable({}, ThrowableCook)
-    self.Tool = tool
-    self.Config = config
+    self.Tool = Tool
+    self.Config = Config
 
-    self.FuseTime = config.FuseTime or tool.Data.FuseTime or 5
-    self.CookAnimation = config.CookAnimation or "Cook"
-    self.ThrowAnimation = config.ThrowAnimation or "Throw"
-    self.PinPullAnimation = config.PinPullAnimation or "PinPull"
-    self.ThrowAnimationTime = config.ThrowAnimationTime or 0.5
+    self.FuseTime = Config.FuseTime or Tool.Data.FuseTime or 5
+    self.CookAnimation = Config.CookAnimation or "Cook"
+    self.ThrowAnimation = Config.ThrowAnimation or "Throw"
+    self.PinPullAnimation = Config.PinPullAnimation or "PinPull"
+    self.ThrowAnimationTime = Config.ThrowAnimationTime or 0.5
 
     self.State = "Idle"
     self.CookStart = 0
@@ -65,30 +65,30 @@ function ThrowableCook.new(tool, config)
     return self
 end
 
-function ThrowableCook:_inventory()
+function ThrowableCook:_Inventory()
     return self.Tool:GetComponent("ThrowableInventory")
 end
 
-function ThrowableCook:_playAnimation(name: string, fadeTime: number?)
-    local animation = self.Tool.Animations[name]
-    if animation then
-        animation:Play(fadeTime)
+function ThrowableCook:_PlayAnimation(Name: string, FadeTime: number?)
+    local Animation = self.Tool.Animations[Name]
+    if Animation then
+        Animation:Play(FadeTime)
     end
 end
 
-function ThrowableCook:_stopAnimation(name: string)
-    local animation = self.Tool.Animations[name]
-    if animation then animation:Stop() end
+function ThrowableCook:_StopAnimation(Name: string)
+    local Animation = self.Tool.Animations[Name]
+    if Animation then Animation:Stop() end
 end
 
 function ThrowableCook:Init()
     -- Fuse timeout watcher. Runs at priority 110 (after springs and viewmodel
     -- so it doesn't fight the visual pipeline). Auto-throws when held past fuse.
-    self.Tool:AddUpdateTask("CookFuseWatch", 110, function(_dt)
+    self.Tool:AddUpdateTask("CookFuseWatch", 110, function(_Dt)
         if self.State ~= "Cooking" then return end
-        local elapsed = tick() - self.CookStart
-        if elapsed >= self.FuseTime then
-            self:_completeThrow(self.FuseTime)
+        local Elapsed = tick() - self.CookStart
+        if Elapsed >= self.FuseTime then
+            self:_CompleteThrow(self.FuseTime)
         end
     end)
 end
@@ -101,29 +101,29 @@ end
 function ThrowableCook:Begin()
     if self.State ~= "Idle" then return end
 
-    local inventory = self:_inventory()
-    if inventory and not inventory:Has() then return end
+    local Inventory = self:_Inventory()
+    if Inventory and not Inventory:Has() then return end
 
     self.State = "Cooking"
     self.CookStart = tick()
 
-    self:_playAnimation(self.PinPullAnimation, 0)
-    self:_playAnimation(self.CookAnimation, 0.1)
+    self:_PlayAnimation(self.PinPullAnimation, 0)
+    self:_PlayAnimation(self.CookAnimation, 0.1)
 end
 
 function ThrowableCook:End()
     if self.State ~= "Cooking" then return end
-    self:_completeThrow(self:CookElapsed())
+    self:_CompleteThrow(self:CookElapsed())
 end
 
-function ThrowableCook:_completeThrow(cookElapsed: number)
+function ThrowableCook:_CompleteThrow(CookElapsed: number)
     self.State = "Throwing"
 
-    self:_stopAnimation(self.CookAnimation)
-    self:_stopAnimation(self.PinPullAnimation)
-    self:_playAnimation(self.ThrowAnimation, 0)
+    self:_StopAnimation(self.CookAnimation)
+    self:_StopAnimation(self.PinPullAnimation)
+    self:_PlayAnimation(self.ThrowAnimation, 0)
 
-    self.OnThrow:Fire(cookElapsed)
+    self.OnThrow:Fire(CookElapsed)
 
     -- Return to Idle once the throw animation should be done so the next
     -- press can begin another cook. We don't gate on the actual animation
@@ -140,15 +140,15 @@ function ThrowableCook:Unequip()
     -- swaps tools while cooking, auto-throw it in place rather than silently
     -- cancelling — matches typical FPS expectations.
     if self.State == "Cooking" then
-        self:_completeThrow(self:CookElapsed())
+        self:_CompleteThrow(self:CookElapsed())
     end
 end
 
 function ThrowableCook:GetHudContribution()
     if self.State ~= "Cooking" then return nil end
-    local remaining = math.max(0, self.FuseTime - self:CookElapsed())
+    local Remaining = math.max(0, self.FuseTime - self:CookElapsed())
     return {
-        secondary = string.format("%.1f", remaining),
+        Secondary = string.format("%.1f", Remaining),
     }
 end
 

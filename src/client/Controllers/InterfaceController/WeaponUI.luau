@@ -46,15 +46,15 @@ function WeaponUI:WatchTool(ToolObject: any?)
 
     WeaponUI.ToolObject = ToolObject
 
-    local hud = ToolObject:GetHudState()
-    WeaponUI:SetIcon(hud.icon or "")
+    local Hud = ToolObject:GetHudState()
+    WeaponUI:SetIcon(Hud.Icon or "")
 
-    if hud.mode == nil then
+    if Hud.Mode == nil then
         WeaponUI:SetAmmo("", "")
         return
     end
 
-    WeaponUI:SetAmmo(hud.primary, hud.secondary)
+    WeaponUI:SetAmmo(Hud.Primary, Hud.Secondary)
 end
 
 function WeaponUI:SetIcon(ImageId:string?)

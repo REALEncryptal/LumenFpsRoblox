@@ -177,7 +177,7 @@ function Controller:_ModelHovered(Model)
     -- Populate action gui
     local ActionContainer = Controller.Gui.ActionContainer
 
-    for i, Action in ipairs(Object.Actions) do
+    for I, Action in ipairs(Object.Actions) do
 
         local ActionData = ActionIndex[Action]
         local ActionEntry:Frame = ReplicatedStorage.Assets.Interface.ActionEntry:Clone()
@@ -185,7 +185,7 @@ function Controller:_ModelHovered(Model)
 
         ActionEntry.ActionName.Text = Action
         ActionEntry.ActionInput.Image = InputImageMap[ActionData.KeyCode]
-        ActionEntry.LayoutOrder = i
+        ActionEntry.LayoutOrder = I
 
         ActionEntry.Parent = ActionContainer
     end

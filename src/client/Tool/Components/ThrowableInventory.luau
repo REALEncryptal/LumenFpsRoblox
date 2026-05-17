@@ -19,11 +19,11 @@ local Trove = shared.Import("Trove")
 local ThrowableInventory = {}
 ThrowableInventory.__index = ThrowableInventory
 
-function ThrowableInventory.new(tool, config)
+function ThrowableInventory.new(Tool, Config)
     local self = setmetatable({}, ThrowableInventory)
-    self.Tool = tool
-    self.Config = config
-    self.Capacity = config.Capacity or tool.Data.Capacity or 2
+    self.Tool = Tool
+    self.Config = Config
+    self.Capacity = Config.Capacity or Tool.Data.Capacity or 2
     self.Count = self.Capacity
 
     self.Trove = Trove.new()
@@ -45,8 +45,8 @@ end
 
 function ThrowableInventory:GetHudContribution()
     return {
-        primary = self.Count,
-        mode = "count",
+        Primary = self.Count,
+        Mode = "count",
     }
 end
 

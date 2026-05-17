@@ -27,13 +27,13 @@ local MAX_HORIZONTAL_ORIGIN_DRIFT = 5
 local MAX_VERTICAL_ORIGIN_DRIFT = 20
 local GRENADE_FUSE = 5
 
-local function ensureFolder(name: string): Folder
-    local existing = workspace:FindFirstChild(name)
-    if existing and existing:IsA("Folder") then return existing end
-    local folder = Instance.new("Folder")
-    folder.Name = name
-    folder.Parent = workspace
-    return folder
+local function EnsureFolder(Name: string): Folder
+    local Existing = workspace:FindFirstChild(Name)
+    if Existing and Existing:IsA("Folder") then return Existing end
+    local Folder = Instance.new("Folder")
+    Folder.Name = Name
+    Folder.Parent = workspace
+    return Folder
 end
 
 local Hindsight, Event
@@ -46,113 +46,113 @@ function Controller:Init()
     Hindsight = shared.Import("Hindsight")
     Event = shared.Import("Event")
 
-    CharactersFolder = ensureFolder("Characters")
-    BulletsFolder = ensureFolder("Bullets")
+    CharactersFolder = EnsureFolder("Characters")
+    BulletsFolder = EnsureFolder("Bullets")
 
-    local definitionsModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Projectiles")
+    local DefinitionsModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Projectiles")
     KnownTypes = {}
-    for projectileType in pairs(require(definitionsModule)) do
-        KnownTypes[projectileType] = true
+    for ProjectileType in pairs(require(DefinitionsModule)) do
+        KnownTypes[ProjectileType] = true
     end
 
-    local raycastFilter = RaycastParams.new()
-    raycastFilter.FilterType = Enum.RaycastFilterType.Exclude
-    raycastFilter.FilterDescendantsInstances = { CharactersFolder, BulletsFolder }
+    local RaycastFilter = RaycastParams.new()
+    RaycastFilter.FilterType = Enum.RaycastFilterType.Exclude
+    RaycastFilter.FilterDescendantsInstances = { CharactersFolder, BulletsFolder }
 
     World = Hindsight.createWorld({
         actorContainer = ServerScriptService,
-        definitionsModule = definitionsModule,
+        definitionsModule = DefinitionsModule,
         visualsContainer = BulletsFolder,
         excludeContainers = { BulletsFolder, CharactersFolder },
-        defaultRaycastFilter = raycastFilter,
+        defaultRaycastFilter = RaycastFilter,
     })
 
     World.rollback:autoCaptureCharacters(CharactersFolder)
 
-    Event:Listen("FireProjectile", function(player, payload)
-        Controller:HandleFire(player, payload)
+    Event:Listen("FireProjectile", function(Player, Payload)
+        Controller:HandleFire(Player, Payload)
     end)
 
-    Event:Listen("ThrowProjectile", function(player, payload)
-        Controller:HandleThrow(player, payload)
+    Event:Listen("ThrowProjectile", function(Player, Payload)
+        Controller:HandleThrow(Player, Payload)
     end)
 end
 
 -- Validate that the supplied origin sits within reasonable bounds of the
 -- player's head — the bullet origin a legit client would have used.
-local function validateOrigin(player: Player, origin: Vector3): boolean
-    local character = player.Character
-    local head = character and character:FindFirstChild("Head")
-    if not head or not head:IsA("BasePart") then return false end
+local function ValidateOrigin(Player: Player, Origin: Vector3): boolean
+    local Character = Player.Character
+    local Head = Character and Character:FindFirstChild("Head")
+    if not Head or not Head:IsA("BasePart") then return false end
 
-    local offset = origin - head.Position
-    local horizontal = Vector3.new(offset.X, 0, offset.Z).Magnitude
-    local vertical = math.abs(offset.Y)
-    return horizontal <= MAX_HORIZONTAL_ORIGIN_DRIFT and vertical <= MAX_VERTICAL_ORIGIN_DRIFT
+    local Offset = Origin - Head.Position
+    local Horizontal = Vector3.new(Offset.X, 0, Offset.Z).Magnitude
+    local Vertical = math.abs(Offset.Y)
+    return Horizontal <= MAX_HORIZONTAL_ORIGIN_DRIFT and Vertical <= MAX_VERTICAL_ORIGIN_DRIFT
 end
 
-local function validatePayload(player: Player, payload): boolean
-    if typeof(payload) ~= "table" then return false end
-    if typeof(payload.type) ~= "string" or not KnownTypes[payload.type] then return false end
-    if typeof(payload.origin) ~= "Vector3" then return false end
-    if typeof(payload.direction) ~= "Vector3" then return false end
-    if typeof(payload.timestamp) ~= "number" then return false end
+local function ValidatePayload(Player: Player, Payload): boolean
+    if typeof(Payload) ~= "table" then return false end
+    if typeof(Payload.Type) ~= "string" or not KnownTypes[Payload.Type] then return false end
+    if typeof(Payload.Origin) ~= "Vector3" then return false end
+    if typeof(Payload.Direction) ~= "Vector3" then return false end
+    if typeof(Payload.Timestamp) ~= "number" then return false end
 
-    local latency = workspace:GetServerTimeNow() - payload.timestamp
-    if latency < 0 or latency > MAXIMUM_LATENCY then return false end
+    local Latency = workspace:GetServerTimeNow() - Payload.Timestamp
+    if Latency < 0 or Latency > MAXIMUM_LATENCY then return false end
 
-    if not validateOrigin(player, payload.origin) then return false end
+    if not ValidateOrigin(Player, Payload.Origin) then return false end
 
     return true
 end
 
-function Controller:HandleFire(player: Player, payload)
-    if not validatePayload(player, payload) then return end
+function Controller:HandleFire(Player: Player, Payload)
+    if not ValidatePayload(Player, Payload) then return end
 
-    local rewindOffset = player:GetNetworkPing() + INTERPOLATION
-    local rewindTime = payload.timestamp - rewindOffset
+    local RewindOffset = Player:GetNetworkPing() + INTERPOLATION
+    local RewindTime = Payload.Timestamp - RewindOffset
 
     -- Broadcast to other clients before casting so their visuals start in
     -- parallel with the server's authoritative resolution.
-    Event:FireAllClients("ProjectileFired", player, payload.type, payload.origin, payload.direction)
+    Event:FireAllClients("ProjectileFired", Player, Payload.Type, Payload.Origin, Payload.Direction)
 
     World:cast({
-        caster = player,
-        type = payload.type,
-        origin = payload.origin,
-        direction = payload.direction,
-        timestamp = rewindTime,
+        caster = Player,
+        type = Payload.Type,
+        origin = Payload.Origin,
+        direction = Payload.Direction,
+        timestamp = RewindTime,
     })
 end
 
-function Controller:HandleThrow(player: Player, payload)
-    if not validatePayload(player, payload) then return end
+function Controller:HandleThrow(Player: Player, Payload)
+    if not ValidatePayload(Player, Payload) then return end
 
     -- Cooked-grenade fuse: clamp client-reported cook elapsed and use what's
     -- left of the fuse as the projectile's lifetime. A grenade cooked past
     -- the fuse explodes immediately on cast.
-    local cookElapsed = typeof(payload.cookElapsed) == "number" and payload.cookElapsed or 0
-    local remainingFuse = math.clamp(GRENADE_FUSE - cookElapsed, 0, GRENADE_FUSE)
+    local CookElapsed = typeof(Payload.CookElapsed) == "number" and Payload.CookElapsed or 0
+    local RemainingFuse = math.clamp(GRENADE_FUSE - CookElapsed, 0, GRENADE_FUSE)
 
-    local rewindOffset = player:GetNetworkPing() + INTERPOLATION
-    local rewindTime = payload.timestamp - rewindOffset
+    local RewindOffset = Player:GetNetworkPing() + INTERPOLATION
+    local RewindTime = Payload.Timestamp - RewindOffset
 
     Event:FireAllClients(
         "ProjectileThrown",
-        player,
-        payload.type,
-        payload.origin,
-        payload.direction,
-        remainingFuse
+        Player,
+        Payload.Type,
+        Payload.Origin,
+        Payload.Direction,
+        RemainingFuse
     )
 
     World:cast({
-        caster = player,
-        type = payload.type,
-        origin = payload.origin,
-        direction = payload.direction,
-        timestamp = rewindTime,
-        modifier = { lifetime = remainingFuse },
+        caster = Player,
+        type = Payload.Type,
+        origin = Payload.Origin,
+        direction = Payload.Direction,
+        timestamp = RewindTime,
+        modifier = { lifetime = RemainingFuse },
     })
 end
 

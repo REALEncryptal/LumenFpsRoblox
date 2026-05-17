@@ -38,108 +38,108 @@ function Controller:Init()
     BulletsFolder = workspace:WaitForChild("Bullets")
     CharactersFolder = workspace:WaitForChild("Characters")
 
-    local assets = ReplicatedStorage:WaitForChild("Assets")
-    local projectileAssets = assets:WaitForChild("Projectiles")
-    Visuals.Bullet = projectileAssets:WaitForChild("Tracer") :: PVInstance
+    local Assets = ReplicatedStorage:WaitForChild("Assets")
+    local ProjectileAssets = Assets:WaitForChild("Projectiles")
+    Visuals.Bullet = ProjectileAssets:WaitForChild("Tracer") :: PVInstance
 
-    local definitionsModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Projectiles")
+    local DefinitionsModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Projectiles")
 
-    local raycastFilter = RaycastParams.new()
-    raycastFilter.FilterType = Enum.RaycastFilterType.Exclude
-    raycastFilter.FilterDescendantsInstances = { CharactersFolder, BulletsFolder }
+    local RaycastFilter = RaycastParams.new()
+    RaycastFilter.FilterType = Enum.RaycastFilterType.Exclude
+    RaycastFilter.FilterDescendantsInstances = { CharactersFolder, BulletsFolder }
 
     World = Hindsight.createWorld({
         actorContainer = LocalPlayer:WaitForChild("PlayerScripts"),
-        definitionsModule = definitionsModule,
+        definitionsModule = DefinitionsModule,
         visualsContainer = BulletsFolder,
         excludeContainers = { BulletsFolder, CharactersFolder },
-        defaultRaycastFilter = raycastFilter,
+        defaultRaycastFilter = RaycastFilter,
     })
 
     -- Render other players' shots locally. The caster runs its own visual cast
     -- before sending to the server, so it skips its own broadcasted echo.
-    Event:Listen("ProjectileFired", function(caster, projectileType, origin, direction)
-        if caster == LocalPlayer then return end
+    Event:Listen("ProjectileFired", function(Caster, ProjectileType, Origin, Direction)
+        if Caster == LocalPlayer then return end
         World:cast({
-            caster = caster,
-            type = projectileType,
-            origin = origin,
-            direction = direction,
+            caster = Caster,
+            type = ProjectileType,
+            origin = Origin,
+            direction = Direction,
             timestamp = workspace:GetServerTimeNow(),
-            visual = Visuals[projectileType],
+            visual = Visuals[ProjectileType],
         })
     end)
 
-    Event:Listen("ProjectileThrown", function(caster, projectileType, origin, direction, remainingFuse)
-        if caster == LocalPlayer then return end
+    Event:Listen("ProjectileThrown", function(Caster, ProjectileType, Origin, Direction, RemainingFuse)
+        if Caster == LocalPlayer then return end
         World:cast({
-            caster = caster,
-            type = projectileType,
-            origin = origin,
-            direction = direction,
+            caster = Caster,
+            type = ProjectileType,
+            origin = Origin,
+            direction = Direction,
             timestamp = workspace:GetServerTimeNow(),
-            modifier = { lifetime = remainingFuse },
-            visual = Visuals[projectileType],
+            modifier = { lifetime = RemainingFuse },
+            visual = Visuals[ProjectileType],
         })
     end)
 end
 
 -- Hitscan/projectile fire — used by HitscanFire-style components.
-function Controller:Cast(projectileType: string, origin: Vector3, direction: Vector3)
-    local timestamp = workspace:GetServerTimeNow()
+function Controller:Cast(ProjectileType: string, Origin: Vector3, Direction: Vector3)
+    local Timestamp = workspace:GetServerTimeNow()
 
     Event:FireServer("FireProjectile", {
-        type = projectileType,
-        origin = origin,
-        direction = direction,
-        timestamp = timestamp,
+        Type = ProjectileType,
+        Origin = Origin,
+        Direction = Direction,
+        Timestamp = Timestamp,
     })
 
     if World then
         World:cast({
             caster = LocalPlayer,
-            type = projectileType,
-            origin = origin,
-            direction = direction,
-            timestamp = timestamp,
-            visual = Visuals[projectileType],
+            type = ProjectileType,
+            origin = Origin,
+            direction = Direction,
+            timestamp = Timestamp,
+            visual = Visuals[ProjectileType],
         })
     end
 
     if ProjectileDebugController then
-        ProjectileDebugController:RecordShot(projectileType, origin, direction)
+        ProjectileDebugController:RecordShot(ProjectileType, Origin, Direction)
     end
 end
 
--- Cooked-fuse throw — used by ThrowableSpawn for grenades. cookElapsed is the
+-- Cooked-fuse throw — used by ThrowableSpawn for grenades. CookElapsed is the
 -- time the player held the pin out; the fuse on the server gets reduced to
--- (GRENADE_FUSE - cookElapsed).
-function Controller:Throw(projectileType: string, origin: Vector3, direction: Vector3, cookElapsed: number)
-    local timestamp = workspace:GetServerTimeNow()
-    local remainingFuse = math.clamp(GRENADE_FUSE - cookElapsed, 0, GRENADE_FUSE)
+-- (GRENADE_FUSE - CookElapsed).
+function Controller:Throw(ProjectileType: string, Origin: Vector3, Direction: Vector3, CookElapsed: number)
+    local Timestamp = workspace:GetServerTimeNow()
+    local RemainingFuse = math.clamp(GRENADE_FUSE - CookElapsed, 0, GRENADE_FUSE)
 
     Event:FireServer("ThrowProjectile", {
-        type = projectileType,
-        origin = origin,
-        direction = direction,
-        timestamp = timestamp,
-        cookElapsed = cookElapsed,
+        Type = ProjectileType,
+        Origin = Origin,
+        Direction = Direction,
+        Timestamp = Timestamp,
+        CookElapsed = CookElapsed,
     })
 
     if World then
         World:cast({
             caster = LocalPlayer,
-            type = projectileType,
-            origin = origin,
-            direction = direction,
-            timestamp = timestamp,
-            modifier = { lifetime = remainingFuse },
-            visual = Visuals[projectileType],
+            type = ProjectileType,
+            origin = Origin,
+            direction = Direction,
+            timestamp = Timestamp,
+            modifier = { lifetime = RemainingFuse },
+            visual = Visuals[ProjectileType],
         })
     end
 
     if ProjectileDebugController then
-        ProjectileDebugController:RecordShot(projectileType, origin, direction)
+        ProjectileDebugController:RecordShot(ProjectileType, Origin, Direction)
     end
 end
 

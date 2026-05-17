@@ -12,26 +12,26 @@
         StoredStart  number? — reserve rounds the tool spawns with; defaults to Capacity
 
     Reachable via:
-        tool:GetComponent("AmmoStore"):Consume(n)
-        tool:GetComponent("AmmoStore"):Refill()
-        tool:GetComponent("AmmoStore"):IsEmpty()
+        Tool:GetComponent("AmmoStore"):Consume(n)
+        Tool:GetComponent("AmmoStore"):Refill()
+        Tool:GetComponent("AmmoStore"):IsEmpty()
 ]]
 
 local AmmoStore = {}
 AmmoStore.__index = AmmoStore
 
-function AmmoStore.new(tool, config)
+function AmmoStore.new(Tool, Config)
     local self = setmetatable({}, AmmoStore)
-    self.Tool = tool
-    self.Capacity = config.Capacity or tool.Data.MagCapacity
+    self.Tool = Tool
+    self.Capacity = Config.Capacity or Tool.Data.MagCapacity
     self.Ammo = self.Capacity
-    self.StoredAmmo = config.StoredStart or self.Capacity
+    self.StoredAmmo = Config.StoredStart or self.Capacity
     return self
 end
 
-function AmmoStore:Consume(amount: number)
-    amount = amount or 1
-    self.Ammo = math.max(0, self.Ammo - amount)
+function AmmoStore:Consume(Amount: number)
+    Amount = Amount or 1
+    self.Ammo = math.max(0, self.Ammo - Amount)
 end
 
 function AmmoStore:IsEmpty(): boolean
@@ -45,18 +45,18 @@ end
 -- Moves rounds from the reserve into the magazine. Returns the amount actually
 -- moved so callers (MagReload) can update sounds / animations if needed.
 function AmmoStore:Refill(): number
-    local needed = self.Capacity - self.Ammo
-    local moved = math.min(needed, self.StoredAmmo)
-    self.Ammo += moved
-    self.StoredAmmo -= moved
-    return moved
+    local Needed = self.Capacity - self.Ammo
+    local Moved = math.min(Needed, self.StoredAmmo)
+    self.Ammo += Moved
+    self.StoredAmmo -= Moved
+    return Moved
 end
 
 function AmmoStore:GetHudContribution()
     return {
-        primary = self.Ammo,
-        secondary = self.StoredAmmo,
-        mode = "ammo",
+        Primary = self.Ammo,
+        Secondary = self.StoredAmmo,
+        Mode = "ammo",
     }
 end
 

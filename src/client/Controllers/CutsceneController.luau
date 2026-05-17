@@ -34,11 +34,11 @@ end
 
 function Controller:DebugUI()
     Iris:Connect(function()
-        local windowSize = Iris.State(Vector2.new(240, 240))
-        local windowPos = Iris.State(Vector2.new(600, 0))
-        local windowOpen = Iris.State(false)
+        local WindowSize = Iris.State(Vector2.new(240, 240))
+        local WindowPos = Iris.State(Vector2.new(600, 0))
+        local WindowOpen = Iris.State(false)
 
-        Iris.Window({"Cutscene Controller"}, {size = windowSize, position = windowPos, isUncollapsed = windowOpen})
+        Iris.Window({"Cutscene Controller"}, {size = WindowSize, position = WindowPos, isUncollapsed = WindowOpen})
 
         if Controller.CurrentCutscene then
             Iris.Text({"Current Cutscene: " .. Controller.CurrentCutscene.Name})

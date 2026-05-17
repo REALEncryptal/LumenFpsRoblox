@@ -51,9 +51,9 @@ function Cutscene.new(Name)
 
     self:AddUpdateTask("Camera", 0, function(DeltaTime)
         -- Rotate the camera to look out from the bottom face
-        local torsoCFrame = self:GetInstance("Camera").Torso.CFrame
-        local bottomFaceCFrame = torsoCFrame * CFrame.Angles(math.rad(90), 0, math.rad(90)) -- Rotate 90 degrees around X-axis for bottom face then 90 deg to make it landscape
-        workspace.CurrentCamera.CFrame = bottomFaceCFrame
+        local TorsoCFrame = self:GetInstance("Camera").Torso.CFrame
+        local BottomFaceCFrame = TorsoCFrame * CFrame.Angles(math.rad(90), 0, math.rad(90)) -- Rotate 90 degrees around X-axis for bottom face then 90 deg to make it landscape
+        workspace.CurrentCamera.CFrame = BottomFaceCFrame
     end)
 
     return self
@@ -114,11 +114,11 @@ function Cutscene:ExecuteEvent(Event, Type, EventData)
     if self:CheckDestroyed() then return end
 
     if Type == "Function" then
-        local success, err = pcall(function()
+        local Success, Err = pcall(function()
             Event()
         end)
-        if not success and self._Debug then
-            warn("[Cutscene] Error executing function event: ", err)
+        if not Success and self._Debug then
+            warn("[Cutscene] Error executing function event: ", Err)
         end
     elseif Type == "Animation" then
         if EventData.Stop then
@@ -266,8 +266,8 @@ function Cutscene:SortUpdateTasks()
         })
     end
     
-    table.sort(self.SortedUpdateTasks, function(a, b)
-        return a.Data.Priority < b.Data.Priority
+    table.sort(self.SortedUpdateTasks, function(A, B)
+        return A.Data.Priority < B.Data.Priority
     end)
 end
 

@@ -10,7 +10,7 @@
         }
 
     Other components and ToolBase reach the crosshair via
-        tool:GetComponent("Crosshair"):Show()  / :Hide() / :SetEnabled(bool)
+        Tool:GetComponent("Crosshair"):Show()  / :Hide() / :SetEnabled(bool)
     so the rest of the codebase doesn't touch the cloned Instance directly.
 ]]
 
@@ -25,9 +25,9 @@ local DISTANCE_FROM_CAMERA = 5
 local Crosshair = {}
 Crosshair.__index = Crosshair
 
-function Crosshair.new(tool, _config)
+function Crosshair.new(Tool, _Config)
     local self = setmetatable({}, Crosshair)
-    self.Tool = tool
+    self.Tool = Tool
     self.Trove = Trove.new()
 
     self.Instance = self.Trove:Clone(ReplicatedStorage.Assets.Crosshair)
@@ -45,7 +45,7 @@ end
 -- The actual per-frame positioning lives in ToolBase's main Update task
 -- (priority 106) because it has to interleave with the camera CFrame surgery
 -- (revert previous offset → position crosshair using the raw camera →
--- apply current offset). ToolBase reads `crosshair.Instance` directly to
+-- apply current offset). ToolBase reads `Crosshair.Instance` directly to
 -- avoid a third camera-CFrame split.
 function Crosshair:GetPositionDistance(): number
     return DISTANCE_FROM_CAMERA
@@ -60,9 +60,9 @@ function Crosshair:Hide()
 end
 
 -- Hard on/off (cutscene tool-hide path). Bypasses the fade tween.
-function Crosshair:SetEnabled(enabled: boolean)
+function Crosshair:SetEnabled(Enabled: boolean)
     if self.SurfaceTarget:IsA("GuiObject") or self.SurfaceTarget:IsA("LayerCollector") then
-        self.SurfaceTarget.Enabled = enabled
+        self.SurfaceTarget.Enabled = Enabled
     end
 end
 

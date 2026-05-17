@@ -232,12 +232,12 @@ function ToolBase.new( ToolFolder: Folder )
         -- raw-camera space (no spring jitter). The Crosshair component owns
         -- the Instance; ToolBase just positions it here to stay inside the
         -- camera surgery window.
-        local crosshairComponent = self:GetComponent("Crosshair")
-        if crosshairComponent then
-            local instance = crosshairComponent.Instance
-            local distance = crosshairComponent:GetPositionDistance()
-            instance.Position = workspace.CurrentCamera.CFrame.Position + workspace.CurrentCamera.CFrame.LookVector * distance
-            instance.CFrame = CFrame.lookAt(instance.Position, workspace.CurrentCamera.CFrame.Position)
+        local CrosshairComponent = self:GetComponent("Crosshair")
+        if CrosshairComponent then
+            local CrosshairInstance = CrosshairComponent.Instance
+            local CrosshairDistance = CrosshairComponent:GetPositionDistance()
+            CrosshairInstance.Position = workspace.CurrentCamera.CFrame.Position + workspace.CurrentCamera.CFrame.LookVector * CrosshairDistance
+            CrosshairInstance.CFrame = CFrame.lookAt(CrosshairInstance.Position, workspace.CurrentCamera.CFrame.Position)
         end
 
         workspace.CurrentCamera.CFrame *= self.CameraCFrame
@@ -279,9 +279,9 @@ function ToolBase.new( ToolFolder: Folder )
     -- Each entry's Name resolves through Librarian so a component file at
     -- src/client/Tool/Components/<Name>.luau is enough — no manual registration.
     if self.Data.Components then
-        for _, entry in ipairs(self.Data.Components) do
-            local componentClass = shared.Import(entry.Name)
-            self:AddComponent(entry.Name, componentClass, entry.Config or {})
+        for _, Entry in ipairs(self.Data.Components) do
+            local ComponentClass = shared.Import(Entry.Name)
+            self:AddComponent(Entry.Name, ComponentClass, Entry.Config or {})
         end
     elseif self.Data.Crosshair then
         -- Legacy fallback for tool data that hasn't migrated to Components yet
@@ -294,9 +294,9 @@ end
 
 -- DEBUG
 function ToolBase:CreateDebug(Iris)
-    for _, component in ipairs(self.ComponentList) do
-        if component.CreateDebug then
-            component:CreateDebug(Iris)
+    for _, Component in ipairs(self.ComponentList) do
+        if Component.CreateDebug then
+            Component:CreateDebug(Iris)
             Iris.Separator()
         end
     end
@@ -308,9 +308,9 @@ function ToolBase:Hide(Hide: boolean)
     self.Offsets._Hidden = Hide and CFrame.new(-100, 0, 0) or CFrame.new()
     self.Enabled = not Hide
 
-    local crosshair = self:GetComponent("Crosshair")
-    if crosshair then
-        crosshair:SetEnabled(not Hide)
+    local Crosshair = self:GetComponent("Crosshair")
+    if Crosshair then
+        Crosshair:SetEnabled(not Hide)
     end
 end
 
@@ -318,13 +318,13 @@ end
 -- nil-check at every show/hide site. Tools without a Crosshair component
 -- (Fists) get silent no-ops.
 function ToolBase:ShowCrosshair()
-    local crosshair = self:GetComponent("Crosshair")
-    if crosshair then crosshair:Show() end
+    local Crosshair = self:GetComponent("Crosshair")
+    if Crosshair then Crosshair:Show() end
 end
 
 function ToolBase:HideCrosshair()
-    local crosshair = self:GetComponent("Crosshair")
-    if crosshair then crosshair:Hide() end
+    local Crosshair = self:GetComponent("Crosshair")
+    if Crosshair then Crosshair:Hide() end
 end
 
 function ToolBase:Activate() end
@@ -362,8 +362,8 @@ function ToolBase:Equip()
 
         InterfaceController.WeaponUI.ToolObject = self
 
-        for _, component in ipairs(self.ComponentList) do
-            if component.Equip then component:Equip() end
+        for _, Component in ipairs(self.ComponentList) do
+            if Component.Equip then Component:Equip() end
         end
 
         self:_ActivateBindings()
@@ -387,8 +387,8 @@ function ToolBase:Unequip(NextTool)
 
     self:_DeactivateBindings()
 
-    for _, component in ipairs(self.ComponentList) do
-        if component.Unequip then component:Unequip() end
+    for _, Component in ipairs(self.ComponentList) do
+        if Component.Unequip then Component:Unequip() end
     end
 
     self:StartUnequip()
@@ -436,8 +436,8 @@ function ToolBase:SortUpdateTasks()
         })
     end
     
-    table.sort(self.SortedUpdateTasks, function(a, b)
-        return a.Data.Priority < b.Data.Priority
+    table.sort(self.SortedUpdateTasks, function(A, B)
+        return A.Data.Priority < B.Data.Priority
     end)
 end
 
@@ -471,17 +471,17 @@ function ToolBase:AddComponent(Name: string, ComponentClass, Config)
     assert(ComponentClass, "AddComponent: ComponentClass is nil for " .. Name)
     assert(not self.Components[Name], "AddComponent: component already exists: " .. Name)
 
-    local component = ComponentClass.new(self, Config or {})
-    self.Components[Name] = component
-    table.insert(self.ComponentList, component)
+    local Component = ComponentClass.new(self, Config or {})
+    self.Components[Name] = Component
+    table.insert(self.ComponentList, Component)
 
     self.Trove:Add(function()
-        if component.Destroy then component:Destroy() end
+        if Component.Destroy then Component:Destroy() end
     end)
 
-    if component.Init then component:Init() end
+    if Component.Init then Component:Init() end
 
-    return component
+    return Component
 end
 
 function ToolBase:GetComponent(Name: string)
@@ -492,34 +492,34 @@ end
 --
 -- Returns a flat table describing what this tool wants the WeaponUI to render.
 -- Shape:
---   icon       string?           -- HudImage assetId for the tool's portrait
---   primary    (number|string)?  -- main readout (ammo count, grenade count)
---   secondary  (number|string)?  -- secondary readout (stored ammo, fuse time)
---   mode       string?           -- "ammo" | "count" | "timer" | nil; nil hides ammo block
+--   Icon       string?           -- HudImage assetId for the tool's portrait
+--   Primary    (number|string)?  -- main readout (ammo count, grenade count)
+--   Secondary  (number|string)?  -- secondary readout (stored ammo, fuse time)
+--   Mode       string?           -- "ammo" | "count" | "timer" | nil; nil hides ammo block
 --
 -- ToolBase merges contributions from every Component that implements
 -- :GetHudContribution(). Components later in ComponentList override earlier
 -- ones for the same field — order matches AddComponent registration order.
 function ToolBase:GetHudState()
-    local state = {
-        icon = self.Data.HudImage,
-        primary = nil,
-        secondary = nil,
-        mode = nil,
+    local State = {
+        Icon = self.Data.HudImage,
+        Primary = nil,
+        Secondary = nil,
+        Mode = nil,
     }
 
-    for _, component in ipairs(self.ComponentList) do
-        if not component.GetHudContribution then continue end
-        local contribution = component:GetHudContribution()
-        if not contribution then continue end
+    for _, Component in ipairs(self.ComponentList) do
+        if not Component.GetHudContribution then continue end
+        local Contribution = Component:GetHudContribution()
+        if not Contribution then continue end
 
-        if contribution.icon ~= nil then state.icon = contribution.icon end
-        if contribution.primary ~= nil then state.primary = contribution.primary end
-        if contribution.secondary ~= nil then state.secondary = contribution.secondary end
-        if contribution.mode ~= nil then state.mode = contribution.mode end
+        if Contribution.Icon ~= nil then State.Icon = Contribution.Icon end
+        if Contribution.Primary ~= nil then State.Primary = Contribution.Primary end
+        if Contribution.Secondary ~= nil then State.Secondary = Contribution.Secondary end
+        if Contribution.Mode ~= nil then State.Mode = Contribution.Mode end
     end
 
-    return state
+    return State
 end
 
 -- BINDINGS
@@ -529,35 +529,35 @@ end
 -- _DeactivateBindings on unequip. Action names must be unique across all
 -- components on a single tool — InputUtil rejects double-binds.
 function ToolBase:_ActivateBindings()
-    for actionName in pairs(self._BoundActions) do
-        InputUtil:UnbindAction(actionName)
+    for ActionName in pairs(self._BoundActions) do
+        InputUtil:UnbindAction(ActionName)
     end
     table.clear(self._BoundActions)
 
-    for _, component in ipairs(self.ComponentList) do
-        local bindings = component.Bindings
-        if not bindings then continue end
+    for _, Component in ipairs(self.ComponentList) do
+        local Bindings = Component.Bindings
+        if not Bindings then continue end
 
-        for actionName, binding in pairs(bindings) do
-            assert(not self._BoundActions[actionName],
-                "ToolBase: binding action collision across components: " .. actionName)
+        for ActionName, Binding in pairs(Bindings) do
+            assert(not self._BoundActions[ActionName],
+                "ToolBase: binding action collision across components: " .. ActionName)
 
-            local handler = binding.OnState
-            InputUtil:BindAction(actionName, function(_, state, inputObject)
-                if handler then
-                    handler(component, state, inputObject)
+            local Handler = Binding.OnState
+            InputUtil:BindAction(ActionName, function(_, State, InputObject)
+                if Handler then
+                    Handler(Component, State, InputObject)
                 end
-            end, false, table.unpack(binding.Inputs))
+            end, false, table.unpack(Binding.Inputs))
 
-            self._BoundActions[actionName] = true
+            self._BoundActions[ActionName] = true
         end
     end
 end
 
 function ToolBase:_DeactivateBindings()
     if not self._BoundActions then return end
-    for actionName in pairs(self._BoundActions) do
-        InputUtil:UnbindAction(actionName)
+    for ActionName in pairs(self._BoundActions) do
+        InputUtil:UnbindAction(ActionName)
     end
     table.clear(self._BoundActions)
 end

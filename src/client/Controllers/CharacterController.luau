@@ -38,16 +38,16 @@ function Controller.Signals.Update(DeltaTime: number)
 end
 
 -- middleware
-function Controller.RequireCharacter(func: (Character: Model, ...any) -> any, ...: string)
+function Controller.RequireCharacter(Func: (Character: Model, ...any) -> any, ...: string)
     return function(...)
         local Character = Controller.GetCharacter()
         if not Character then return end
-        
+
         for _, PartName in {...} do
             if not Character:FindFirstChild(PartName) then return end
         end
-        
-        return func(Character, ...)
+
+        return Func(Character, ...)
     end
 end
 

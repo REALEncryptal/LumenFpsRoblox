@@ -15,21 +15,21 @@ local CharactersFolderName = "Characters"
 
 -- Skip the caster and (later) teammates. Runs on a simulation actor in parallel
 -- context — read-only access only, no Humanoid state inspection.
-local function defaultFilter(
-    caster: Hindsight.Caster,
-    victim: Player?,
-    character: Model,
-    _extra: Hindsight.Extra
+local function DefaultFilter(
+    Caster: Hindsight.Caster,
+    Victim: Player?,
+    Character: Model,
+    _Extra: Hindsight.Extra
 ): boolean
-    if victim == caster or character == caster then
+    if Victim == Caster or Character == Caster then
         return true
     end
     return false
 end
 
-local function applyDamage(humanoid: Humanoid, amount: number)
-    if not humanoid or humanoid.Health <= 0 then return end
-    humanoid:TakeDamage(amount)
+local function ApplyDamage(Humanoid: Humanoid, Amount: number)
+    if not Humanoid or Humanoid.Health <= 0 then return end
+    Humanoid:TakeDamage(Amount)
 end
 
 local Bullet: Hindsight.ProjectileDefinition = {
@@ -40,16 +40,16 @@ local Bullet: Hindsight.ProjectileDefinition = {
     angle = 20,
     loss = 0,
     collaterals = false,
-    filter = defaultFilter,
-    onImpact = function(_ctx) end,
-    onIntersection = function(ctx)
+    filter = DefaultFilter,
+    onImpact = function(_Ctx) end,
+    onIntersection = function(Ctx)
         if not IS_SERVER then return end
-        local humanoid = ctx.character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            applyDamage(humanoid, 25)
+        local Humanoid = Ctx.character:FindFirstChildOfClass("Humanoid")
+        if Humanoid then
+            ApplyDamage(Humanoid, 25)
         end
     end,
-    onDestroyed = function(_ctx) end,
+    onDestroyed = function(_Ctx) end,
 }
 
 local GRENADE_RADIUS = 14
@@ -63,43 +63,43 @@ local Grenade: Hindsight.ProjectileDefinition = {
     angle = 89,
     loss = 0.55,
     collaterals = false,
-    filter = defaultFilter,
-    onImpact = function(_ctx)
+    filter = DefaultFilter,
+    onImpact = function(_Ctx)
         -- Bouncing handled by ricochet (angle/loss). No-op here so the projectile
         -- keeps living until its fuse runs out.
     end,
-    onIntersection = function(_ctx)
+    onIntersection = function(_Ctx)
         -- Grenades don't damage on touch; only on fuse expiry via onDestroyed.
     end,
-    onDestroyed = function(ctx)
+    onDestroyed = function(Ctx)
         -- Server applies the damage AoE and spawns the Explosion. The visual
         -- replicates to every client automatically; if the client cast its own
         -- visual world copy too, gating here prevents a double-blast for the
         -- caster.
         if not IS_SERVER then return end
 
-        local charactersFolder = workspace:FindFirstChild(CharactersFolderName)
-        if charactersFolder then
-            for _, character in ipairs(charactersFolder:GetChildren()) do
-                if not character:IsA("Model") then continue end
-                local root = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if not (root and root:IsA("BasePart") and humanoid) then continue end
+        local CharactersFolder = workspace:FindFirstChild(CharactersFolderName)
+        if CharactersFolder then
+            for _, Character in ipairs(CharactersFolder:GetChildren()) do
+                if not Character:IsA("Model") then continue end
+                local Root = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+                local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if not (Root and Root:IsA("BasePart") and Humanoid) then continue end
 
-                local distance = (root.Position - ctx.position).Magnitude
-                if distance > GRENADE_RADIUS then continue end
+                local Distance = (Root.Position - Ctx.position).Magnitude
+                if Distance > GRENADE_RADIUS then continue end
 
-                local falloff = 1 - (distance / GRENADE_RADIUS)
-                applyDamage(humanoid, GRENADE_MAX_DAMAGE * falloff)
+                local Falloff = 1 - (Distance / GRENADE_RADIUS)
+                ApplyDamage(Humanoid, GRENADE_MAX_DAMAGE * Falloff)
             end
         end
 
-        local explosion = Instance.new("Explosion")
-        explosion.Position = ctx.position
-        explosion.BlastRadius = GRENADE_RADIUS
-        explosion.BlastPressure = 0
-        explosion.DestroyJointRadiusPercent = 0
-        explosion.Parent = workspace
+        local Explosion = Instance.new("Explosion")
+        Explosion.Position = Ctx.position
+        Explosion.BlastRadius = GRENADE_RADIUS
+        Explosion.BlastPressure = 0
+        Explosion.DestroyJointRadiusPercent = 0
+        Explosion.Parent = workspace
     end,
 }
 

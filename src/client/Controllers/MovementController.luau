@@ -73,54 +73,54 @@ function Controller:Init()
 	Controller.Signals.CharacterAdded(LocalPlayer.Character)
 
 	Iris:Connect(function()
-		local windowSize = Iris.State(Vector2.new(260, 460))
-		local windowPos = Iris.State(Vector2.new(300, 0))
-		local debugState = Iris.State(false)
-		local hitboxState = Iris.State(true)
-		local wishDirState = Iris.State(true)
-		local velocityState = Iris.State(true)
-		local groundCastState = Iris.State(true)
-		local collideSlideState = Iris.State(true)
-		local driftState = Iris.State(true)
-		local logFrameState = Iris.State(false)
+		local WindowSize = Iris.State(Vector2.new(260, 460))
+		local WindowPos = Iris.State(Vector2.new(300, 0))
+		local DebugState = Iris.State(false)
+		local HitboxState = Iris.State(true)
+		local WishDirState = Iris.State(true)
+		local VelocityState = Iris.State(true)
+		local GroundCastState = Iris.State(true)
+		local CollideSlideState = Iris.State(true)
+		local DriftState = Iris.State(true)
+		local LogFrameState = Iris.State(false)
 
-		Iris.Window({"Movement Manager"}, {size = windowSize, position = windowPos})
+		Iris.Window({"Movement Manager"}, {size = WindowSize, position = WindowPos})
 
-		Iris.Checkbox({"Debug Enabled"}, {isChecked = debugState})
-		Iris.Checkbox({"Hitbox"}, {isChecked = hitboxState})
-		Iris.Checkbox({"Wish Dir"}, {isChecked = wishDirState})
-		Iris.Checkbox({"Velocity"}, {isChecked = velocityState})
-		Iris.Checkbox({"Ground Cast"}, {isChecked = groundCastState})
-		Iris.Checkbox({"Collide & Slide"}, {isChecked = collideSlideState})
-		Iris.Checkbox({"Drift Arrow"}, {isChecked = driftState})
+		Iris.Checkbox({"Debug Enabled"}, {isChecked = DebugState})
+		Iris.Checkbox({"Hitbox"}, {isChecked = HitboxState})
+		Iris.Checkbox({"Wish Dir"}, {isChecked = WishDirState})
+		Iris.Checkbox({"Velocity"}, {isChecked = VelocityState})
+		Iris.Checkbox({"Ground Cast"}, {isChecked = GroundCastState})
+		Iris.Checkbox({"Collide & Slide"}, {isChecked = CollideSlideState})
+		Iris.Checkbox({"Drift Arrow"}, {isChecked = DriftState})
 
 		Iris.SeparatorText({"Slope Diagnostics"})
-		Iris.Checkbox({"Log Frame to Output"}, {isChecked = logFrameState})
+		Iris.Checkbox({"Log Frame to Output"}, {isChecked = LogFrameState})
 
-		local d = Controller.Diag
-		local normal = Controller.GroundCastResult and Controller.GroundCastResult.Normal or Vector3.yAxis
-		local angle = math.deg(math.acos(math.clamp(Controller.NormalDotProduct or 1, -1, 1)))
-		local groundedText = Controller.Grounded and "yes" or "no"
-		local wd = Controller.MoveVector or Vector3.zero
-		local driftDir = d.DriftSign > 0 and "->R" or (d.DriftSign < 0 and "<-L" or "--")
+		local D = Controller.Diag
+		local Normal = Controller.GroundCastResult and Controller.GroundCastResult.Normal or Vector3.yAxis
+		local Angle = math.deg(math.acos(math.clamp(Controller.NormalDotProduct or 1, -1, 1)))
+		local GroundedText = Controller.Grounded and "yes" or "no"
+		local Wd = Controller.MoveVector or Vector3.zero
+		local DriftDir = D.DriftSign > 0 and "->R" or (D.DriftSign < 0 and "<-L" or "--")
 
-		Iris.Text({string.format("Grounded: %s | Slope: %.1f deg", groundedText, angle)})
-		Iris.Text({string.format("Normal:   (%.2f, %.2f, %.2f)", normal.X, normal.Y, normal.Z)})
-		Iris.Text({string.format("WishDir:  (%.2f, %.2f)", wd.X, wd.Z)})
-		Iris.Text({string.format("HorizSpd: %.2f  Drift: %.2f %s", d.HorizSpeed, d.DriftSpeed, driftDir)})
-		Iris.Text({string.format("VelIn:    (%.2f, %.2f, %.2f)", d.VelIn.X, d.VelIn.Y, d.VelIn.Z)})
-		Iris.Text({string.format("AfterAcc: (%.2f, %.2f, %.2f)", d.VelAfterAccel.X, d.VelAfterAccel.Y, d.VelAfterAccel.Z)})
-		Iris.Text({string.format("AfterSlp: (%.2f, %.2f, %.2f)", d.VelAfterSlope.X, d.VelAfterSlope.Y, d.VelAfterSlope.Z)})
-		Iris.Text({string.format("AfterClp: (%.2f, %.2f, %.2f)", d.VelAfterClip.X, d.VelAfterClip.Y, d.VelAfterClip.Z)})
+		Iris.Text({string.format("Grounded: %s | Slope: %.1f deg", GroundedText, Angle)})
+		Iris.Text({string.format("Normal:   (%.2f, %.2f, %.2f)", Normal.X, Normal.Y, Normal.Z)})
+		Iris.Text({string.format("WishDir:  (%.2f, %.2f)", Wd.X, Wd.Z)})
+		Iris.Text({string.format("HorizSpd: %.2f  Drift: %.2f %s", D.HorizSpeed, D.DriftSpeed, DriftDir)})
+		Iris.Text({string.format("VelIn:    (%.2f, %.2f, %.2f)", D.VelIn.X, D.VelIn.Y, D.VelIn.Z)})
+		Iris.Text({string.format("AfterAcc: (%.2f, %.2f, %.2f)", D.VelAfterAccel.X, D.VelAfterAccel.Y, D.VelAfterAccel.Z)})
+		Iris.Text({string.format("AfterSlp: (%.2f, %.2f, %.2f)", D.VelAfterSlope.X, D.VelAfterSlope.Y, D.VelAfterSlope.Z)})
+		Iris.Text({string.format("AfterClp: (%.2f, %.2f, %.2f)", D.VelAfterClip.X, D.VelAfterClip.Y, D.VelAfterClip.Z)})
 
-		Controller._Debug = debugState.value
-		Controller._ShowHitbox = hitboxState.value
-		Controller._ShowWishDir = wishDirState.value
-		Controller._ShowVelocity = velocityState.value
-		Controller._ShowGroundCast = groundCastState.value
-		Controller._ShowCollideSlide = collideSlideState.value
-		Controller._ShowDrift = driftState.value
-		Controller._LogFrame = logFrameState.value
+		Controller._Debug = DebugState.value
+		Controller._ShowHitbox = HitboxState.value
+		Controller._ShowWishDir = WishDirState.value
+		Controller._ShowVelocity = VelocityState.value
+		Controller._ShowGroundCast = GroundCastState.value
+		Controller._ShowCollideSlide = CollideSlideState.value
+		Controller._ShowDrift = DriftState.value
+		Controller._LogFrame = LogFrameState.value
 
 		Iris.End()
 	end)
@@ -139,14 +139,14 @@ function Controller.Signals.CharacterAdded(Character: Model)
 	Controller.VelocityInstance.Enabled = false
 
 	-- Resize hull to Source-style proportions.
-	local oldSize = Controller.Collider.Size
+	local OldSize = Controller.Collider.Size
 	Controller.Collider.Size = HULL_SIZE
-	Controller.Collider.Position += Vector3.new(0, (HULL_SIZE.Y - oldSize.Y) / 2, 0)
+	Controller.Collider.Position += Vector3.new(0, (HULL_SIZE.Y - OldSize.Y) / 2, 0)
 
 	-- Zero friction/elasticity so contact doesn't drag velocity.
-	local existing = Controller.Collider.CustomPhysicalProperties
+	local Existing = Controller.Collider.CustomPhysicalProperties
 	Controller.Collider.CustomPhysicalProperties = PhysicalProperties.new(
-		existing and existing.Density or 1,
+		Existing and Existing.Density or 1,
 		0,
 		0,
 		100,
@@ -171,50 +171,50 @@ function Controller.Signals.CharacterAdded(Character: Model)
 	pcall(function() RunService:UnbindFromRenderStep(CAMERA_OFFSET_BIND) end)
 	RunService:BindToRenderStep(CAMERA_OFFSET_BIND, Enum.RenderPriority.Camera.Value + 1, function()
 		if not Controller.Collider or not Controller.Collider.Parent then return end
-		local size = Controller.Collider.Size
-		Camera.CFrame = Camera.CFrame + Vector3.new(0, size.Y / 2 - EYE_OFFSET_FROM_TOP, 0)
+		local Size = Controller.Collider.Size
+		Camera.CFrame = Camera.CFrame + Vector3.new(0, Size.Y / 2 - EYE_OFFSET_FROM_TOP, 0)
 	end)
 end
 
 -- Source: ApplyFriction. Acts only on the horizontal component.
-local function ApplyFriction(v: Vector3, dt: number): Vector3
-	local horizontal = Vector3.new(v.X, 0, v.Z)
-	local speed = horizontal.Magnitude
-	if speed < 0.1 then
-		return Vector3.new(0, v.Y, 0)
+local function ApplyFriction(V: Vector3, Dt: number): Vector3
+	local Horizontal = Vector3.new(V.X, 0, V.Z)
+	local Speed = Horizontal.Magnitude
+	if Speed < 0.1 then
+		return Vector3.new(0, V.Y, 0)
 	end
-	local control = math.max(speed, SV_STOPSPEED)
-	local drop = control * SV_FRICTION * dt
-	local newspeed = math.max(speed - drop, 0)
-	local scale = newspeed / speed
-	return Vector3.new(v.X * scale, v.Y, v.Z * scale)
+	local Control = math.max(Speed, SV_STOPSPEED)
+	local Drop = Control * SV_FRICTION * Dt
+	local NewSpeed = math.max(Speed - Drop, 0)
+	local Scale = NewSpeed / Speed
+	return Vector3.new(V.X * Scale, V.Y, V.Z * Scale)
 end
 
 -- Source: Accelerate (ground).
-local function Accelerate(v: Vector3, wishdir: Vector3, wishspeed: number, accel: number, dt: number): Vector3
-	if wishdir.Magnitude < 0.001 then return v end
-	local currentspeed = v:Dot(wishdir)
-	local addspeed = wishspeed - currentspeed
-	if addspeed <= 0 then return v end
-	local accelspeed = math.min(accel * dt * wishspeed, addspeed)
-	return v + wishdir * accelspeed
+local function Accelerate(V: Vector3, Wishdir: Vector3, Wishspeed: number, Accel: number, Dt: number): Vector3
+	if Wishdir.Magnitude < 0.001 then return V end
+	local CurrentSpeed = V:Dot(Wishdir)
+	local AddSpeed = Wishspeed - CurrentSpeed
+	if AddSpeed <= 0 then return V end
+	local AccelSpeed = math.min(Accel * Dt * Wishspeed, AddSpeed)
+	return V + Wishdir * AccelSpeed
 end
 
--- Source: AirAccelerate. wishspd clamped to AIR_SPEED_CAP for the addspeed cap,
--- but accelspeed uses unclamped wishspeed — that asymmetry enables air-strafing.
-local function AirAccelerate(v: Vector3, wishdir: Vector3, wishspeed: number, accel: number, dt: number): Vector3
-	if wishdir.Magnitude < 0.001 then return v end
-	local wishspd = math.min(wishspeed, AIR_SPEED_CAP)
-	local currentspeed = v:Dot(wishdir)
-	local addspeed = wishspd - currentspeed
-	if addspeed <= 0 then return v end
-	local accelspeed = math.min(accel * dt * wishspeed, addspeed)
-	return v + wishdir * accelspeed
+-- Source: AirAccelerate. Wishspd clamped to AIR_SPEED_CAP for the AddSpeed cap,
+-- but AccelSpeed uses unclamped Wishspeed — that asymmetry enables air-strafing.
+local function AirAccelerate(V: Vector3, Wishdir: Vector3, Wishspeed: number, Accel: number, Dt: number): Vector3
+	if Wishdir.Magnitude < 0.001 then return V end
+	local Wishspd = math.min(Wishspeed, AIR_SPEED_CAP)
+	local CurrentSpeed = V:Dot(Wishdir)
+	local AddSpeed = Wishspd - CurrentSpeed
+	if AddSpeed <= 0 then return V end
+	local AccelSpeed = math.min(Accel * Dt * Wishspeed, AddSpeed)
+	return V + Wishdir * AccelSpeed
 end
 
--- Project a vector onto the plane defined by `normal`.
-local function ProjectOnPlane(v: Vector3, normal: Vector3): Vector3
-	return v - normal * v:Dot(normal)
+-- Project a vector onto the plane defined by `Normal`.
+local function ProjectOnPlane(V: Vector3, Normal: Vector3): Vector3
+	return V - Normal * V:Dot(Normal)
 end
 
 -- Snap velocity onto the slope plane while preserving horizontal velocity
@@ -233,12 +233,12 @@ end
 -- because Z kept getting absorbed into Y so Accelerate's currentspeed never
 -- reached MAX_GROUND_SPEED, pinning the perpendicular component at a non-zero
 -- equilibrium.
-local function ClipVelocityToSlope(v: Vector3, normal: Vector3): Vector3
-	if normal.Y > 0.999 then
-		return Vector3.new(v.X, 0, v.Z)
+local function ClipVelocityToSlope(V: Vector3, Normal: Vector3): Vector3
+	if Normal.Y > 0.999 then
+		return Vector3.new(V.X, 0, V.Z)
 	end
-	local y = -(normal.X * v.X + normal.Z * v.Z) / normal.Y
-	return Vector3.new(v.X, y, v.Z)
+	local Y = -(Normal.X * V.X + Normal.Z * V.Z) / Normal.Y
+	return Vector3.new(V.X, Y, V.Z)
 end
 
 -- Recursive Collide and Slide. Takes a displacement vector and returns the
@@ -247,43 +247,43 @@ end
 -- just before it (minus SKIN_WIDTH), projects the leftover motion onto that
 -- surface, and recurses.
 --
--- `debugSteps` (optional) collects per-bounce metadata for visualization.
-local function CollideAndSlide(displacement: Vector3, origin: CFrame, size: Vector3, params: RaycastParams, depth: number, debugSteps): Vector3
-	if depth >= MAX_BOUNCES then return Vector3.zero end
+-- `DebugSteps` (optional) collects per-bounce metadata for visualization.
+local function CollideAndSlide(Displacement: Vector3, Origin: CFrame, Size: Vector3, Params: RaycastParams, Depth: number, DebugSteps): Vector3
+	if Depth >= MAX_BOUNCES then return Vector3.zero end
 
-	local distance = displacement.Magnitude
-	if distance < 0.0001 then return Vector3.zero end
+	local Distance = Displacement.Magnitude
+	if Distance < 0.0001 then return Vector3.zero end
 
-	local direction = displacement.Unit
-	local castDistance = distance + SKIN_WIDTH
-	local hit = workspace:Blockcast(origin, size, direction * castDistance, params)
+	local Direction = Displacement.Unit
+	local CastDistance = Distance + SKIN_WIDTH
+	local Hit = workspace:Blockcast(Origin, Size, Direction * CastDistance, Params)
 
-	local step
-	if debugSteps then
-		step = {
-			depth = depth,
-			startCFrame = origin,
-			endCFrame = origin + displacement, -- where the hull lands if no hit
-			hit = hit,
+	local Step
+	if DebugSteps then
+		Step = {
+			Depth = Depth,
+			StartCFrame = Origin,
+			EndCFrame = Origin + Displacement, -- where the hull lands if no hit
+			Hit = Hit,
 		}
-		table.insert(debugSteps, step)
+		table.insert(DebugSteps, Step)
 	end
 
-	if not hit then
-		return displacement
+	if not Hit then
+		return Displacement
 	end
 
-	local snapDistance = math.max(hit.Distance - SKIN_WIDTH, 0)
-	local snap = direction * snapDistance
-	local leftover = displacement - snap
-	leftover = ProjectOnPlane(leftover, hit.Normal)
+	local SnapDistance = math.max(Hit.Distance - SKIN_WIDTH, 0)
+	local Snap = Direction * SnapDistance
+	local Leftover = Displacement - Snap
+	Leftover = ProjectOnPlane(Leftover, Hit.Normal)
 
-	if step then
-		step.snapCFrame = origin + snap
-		step.leftover = leftover
+	if Step then
+		Step.SnapCFrame = Origin + Snap
+		Step.Leftover = Leftover
 	end
 
-	return snap + CollideAndSlide(leftover, origin + snap, size, params, depth + 1, debugSteps)
+	return Snap + CollideAndSlide(Leftover, Origin + Snap, Size, Params, Depth + 1, DebugSteps)
 end
 
 function Controller.Signals.Update(DeltaTime: number)
@@ -296,16 +296,16 @@ function Controller.Signals.Update(DeltaTime: number)
 
 	Controller:DoGroundCast()
 
-	local velocity = Controller.Collider.AssemblyLinearVelocity
-	Controller.Diag.VelIn = velocity
-	velocity = Controller:DoJump(velocity)
-	velocity = Controller:DoMove(velocity, DeltaTime)
-	velocity = Controller:DoStairStep(velocity, DeltaTime)
-	velocity = Controller:DoGravity(velocity, DeltaTime)
-	velocity = Controller:ClipMotion(velocity, DeltaTime)
-	Controller.Diag.VelAfterClip = velocity
+	local Velocity = Controller.Collider.AssemblyLinearVelocity
+	Controller.Diag.VelIn = Velocity
+	Velocity = Controller:DoJump(Velocity)
+	Velocity = Controller:DoMove(Velocity, DeltaTime)
+	Velocity = Controller:DoStairStep(Velocity, DeltaTime)
+	Velocity = Controller:DoGravity(Velocity, DeltaTime)
+	Velocity = Controller:ClipMotion(Velocity, DeltaTime)
+	Controller.Diag.VelAfterClip = Velocity
 
-	Controller.Collider.AssemblyLinearVelocity = velocity
+	Controller.Collider.AssemblyLinearVelocity = Velocity
 	Controller.ForceInstance.Force = Vector3.new(0, workspace.Gravity * Controller.Collider.AssemblyMass, 0)
 
 	-- Compute drift = horizontal velocity component perpendicular to wishdir.
@@ -313,41 +313,41 @@ function Controller.Signals.Update(DeltaTime: number)
 	-- This is the number that should stay near zero on a slope when input is
 	-- aligned with motion — if it grows, we're surfing.
 	do
-		local d = Controller.Diag
-		local hv = Vector3.new(velocity.X, 0, velocity.Z)
-		d.HorizSpeed = hv.Magnitude
-		local wd = Controller.MoveVector
-		if wd.Magnitude > 0.001 and hv.Magnitude > 0.001 then
-			local forwardSpeed = hv:Dot(wd)
-			local perp = hv - wd * forwardSpeed
-			d.DriftSpeed = perp.Magnitude
-			-- wd × yAxis points to wd's right (Roblox: +X is right when facing -Z).
-			local rightAxis = wd:Cross(Vector3.yAxis)
-			d.DriftSign = perp:Dot(rightAxis) >= 0 and 1 or -1
+		local D = Controller.Diag
+		local Hv = Vector3.new(Velocity.X, 0, Velocity.Z)
+		D.HorizSpeed = Hv.Magnitude
+		local Wd = Controller.MoveVector
+		if Wd.Magnitude > 0.001 and Hv.Magnitude > 0.001 then
+			local ForwardSpeed = Hv:Dot(Wd)
+			local Perp = Hv - Wd * ForwardSpeed
+			D.DriftSpeed = Perp.Magnitude
+			-- Wd × yAxis points to Wd's right (Roblox: +X is right when facing -Z).
+			local RightAxis = Wd:Cross(Vector3.yAxis)
+			D.DriftSign = Perp:Dot(RightAxis) >= 0 and 1 or -1
 		else
-			d.DriftSpeed = 0
-			d.DriftSign = 0
+			D.DriftSpeed = 0
+			D.DriftSign = 0
 		end
 
 		if Controller._LogFrame then
-			local normal = Controller.GroundCastResult and Controller.GroundCastResult.Normal or Vector3.yAxis
-			local slopeAngle = math.deg(math.acos(math.clamp(Controller.NormalDotProduct or 1, -1, 1)))
+			local Normal = Controller.GroundCastResult and Controller.GroundCastResult.Normal or Vector3.yAxis
+			local SlopeAngle = math.deg(math.acos(math.clamp(Controller.NormalDotProduct or 1, -1, 1)))
 			print(string.format(
 				"[Move] grnd=%s slope=%.1f norm=(%.2f,%.2f,%.2f) wish=(%.2f,%.2f) hSpd=%.2f drift=%.2f(%s) | in=(%.2f,%.2f,%.2f) acc=(%.2f,%.2f,%.2f) slp=(%.2f,%.2f,%.2f) clp=(%.2f,%.2f,%.2f)",
-				Controller.Grounded and "Y" or "N", slopeAngle,
-				normal.X, normal.Y, normal.Z,
-				wd.X, wd.Z,
-				d.HorizSpeed, d.DriftSpeed, d.DriftSign > 0 and "R" or "L",
-				d.VelIn.X, d.VelIn.Y, d.VelIn.Z,
-				d.VelAfterAccel.X, d.VelAfterAccel.Y, d.VelAfterAccel.Z,
-				d.VelAfterSlope.X, d.VelAfterSlope.Y, d.VelAfterSlope.Z,
-				d.VelAfterClip.X, d.VelAfterClip.Y, d.VelAfterClip.Z
+				Controller.Grounded and "Y" or "N", SlopeAngle,
+				Normal.X, Normal.Y, Normal.Z,
+				Wd.X, Wd.Z,
+				D.HorizSpeed, D.DriftSpeed, D.DriftSign > 0 and "R" or "L",
+				D.VelIn.X, D.VelIn.Y, D.VelIn.Z,
+				D.VelAfterAccel.X, D.VelAfterAccel.Y, D.VelAfterAccel.Z,
+				D.VelAfterSlope.X, D.VelAfterSlope.Y, D.VelAfterSlope.Z,
+				D.VelAfterClip.X, D.VelAfterClip.Y, D.VelAfterClip.Z
 			))
 		end
 	end
 
 	if Controller._Debug then
-		local origin = Controller.Collider.Position + Vector3.yAxis * (Controller.Collider.Size.Y / 2)
+		local Origin = Controller.Collider.Position + Vector3.yAxis * (Controller.Collider.Size.Y / 2)
 
 		if Controller._ShowHitbox then
 			ImGizmo.PushProperty("Color3", Color3.new(1, 1, 0))
@@ -356,33 +356,33 @@ function Controller.Signals.Update(DeltaTime: number)
 
 		if Controller._ShowWishDir and Controller.MoveVector.Magnitude > 0.001 then
 			ImGizmo.PushProperty("Color3", Color3.new(0, 1, 1))
-			ImGizmo.Arrow:Draw(origin, origin + Controller.MoveVector * 3, 0.12, 0.3, 10)
+			ImGizmo.Arrow:Draw(Origin, Origin + Controller.MoveVector * 3, 0.12, 0.3, 10)
 		end
 
 		if Controller._ShowVelocity then
-			local hv = Vector3.new(velocity.X, 0, velocity.Z)
-			if hv.Magnitude > 0.1 then
+			local Hv = Vector3.new(Velocity.X, 0, Velocity.Z)
+			if Hv.Magnitude > 0.1 then
 				ImGizmo.PushProperty("Color3", Color3.new(0.2, 1, 0.2))
-				ImGizmo.Arrow:Draw(origin, origin + hv * 0.1, 0.1, 0.3, 10)
+				ImGizmo.Arrow:Draw(Origin, Origin + Hv * 0.1, 0.1, 0.3, 10)
 			end
 
-			if math.abs(velocity.Y) > 0.5 then
-				local color = velocity.Y > 0 and Color3.new(1, 1, 0.2) or Color3.new(1, 0.5, 0)
-				ImGizmo.PushProperty("Color3", color)
-				ImGizmo.Arrow:Draw(origin, origin + Vector3.new(0, velocity.Y * 0.1, 0), 0.1, 0.3, 10)
+			if math.abs(Velocity.Y) > 0.5 then
+				local Color = Velocity.Y > 0 and Color3.new(1, 1, 0.2) or Color3.new(1, 0.5, 0)
+				ImGizmo.PushProperty("Color3", Color)
+				ImGizmo.Arrow:Draw(Origin, Origin + Vector3.new(0, Velocity.Y * 0.1, 0), 0.1, 0.3, 10)
 			end
 		end
 
 		if Controller._ShowDrift and Controller.MoveVector.Magnitude > 0.001 then
-			local hv = Vector3.new(velocity.X, 0, velocity.Z)
-			local wd = Controller.MoveVector
-			local perp = hv - wd * hv:Dot(wd)
-			if perp.Magnitude > 0.05 then
+			local Hv = Vector3.new(Velocity.X, 0, Velocity.Z)
+			local Wd = Controller.MoveVector
+			local Perp = Hv - Wd * Hv:Dot(Wd)
+			if Perp.Magnitude > 0.05 then
 				-- Magenta: how much horizontal velocity is sideways relative to
 				-- input. On a clean slope walk this should be tiny — a long arm
 				-- here is the "surfing" the user is feeling.
 				ImGizmo.PushProperty("Color3", Color3.new(1, 0.2, 1))
-				ImGizmo.Arrow:Draw(origin, origin + perp * 0.2, 0.1, 0.3, 10)
+				ImGizmo.Arrow:Draw(Origin, Origin + Perp * 0.2, 0.1, 0.3, 10)
 			end
 		end
 	end
@@ -396,98 +396,98 @@ function Controller:DoGroundCast()
 	Params.IgnoreWater = true
 	Params.FilterDescendantsInstances = {Controller.Character}
 
-	local colliderSize = Controller.Collider.Size
-	local castSize = Vector3.new(colliderSize.X * 0.99, 0.05, colliderSize.Z * 0.99)
+	local ColliderSize = Controller.Collider.Size
+	local CastSize = Vector3.new(ColliderSize.X * 0.99, 0.05, ColliderSize.Z * 0.99)
 	local CAST_LIFT = 0.15
-	local castOrigin = CFrame.new(Controller.Collider.Position - Vector3.new(0, colliderSize.Y / 2 - CAST_LIFT - 0.025, 0))
+	local CastOrigin = CFrame.new(Controller.Collider.Position - Vector3.new(0, ColliderSize.Y / 2 - CAST_LIFT - 0.025, 0))
 
 	Controller.WasGrounded = Controller.Grounded
 	Controller.Grounded = false
 	Controller.GroundCastResult = nil
 	Controller.NormalDotProduct = 1
 
-	local shortHit = workspace:Blockcast(castOrigin, castSize, Vector3.new(0, -(CAST_LIFT + GROUND_SNAP_DISTANCE), 0), Params)
-	if shortHit then
-		local dot = shortHit.Normal:Dot(Vector3.yAxis)
-		if dot >= MIN_GROUND_NORMAL_Y then
+	local ShortHit = workspace:Blockcast(CastOrigin, CastSize, Vector3.new(0, -(CAST_LIFT + GROUND_SNAP_DISTANCE), 0), Params)
+	if ShortHit then
+		local Dot = ShortHit.Normal:Dot(Vector3.yAxis)
+		if Dot >= MIN_GROUND_NORMAL_Y then
 			Controller.Grounded = true
-			Controller.GroundCastResult = shortHit
-			Controller.NormalDotProduct = dot
+			Controller.GroundCastResult = ShortHit
+			Controller.NormalDotProduct = Dot
 			return
 		end
 	end
 
 	if Controller.WasGrounded then
-		local longHit = workspace:Blockcast(castOrigin, castSize, Vector3.new(0, -(CAST_LIFT + STEP_HEIGHT), 0), Params)
-		if longHit then
-			local dot = longHit.Normal:Dot(Vector3.yAxis)
-			if dot >= MIN_GROUND_NORMAL_Y then
-				local surfaceY = castOrigin.Position.Y - 0.025 - longHit.Distance
-				local newCenterY = surfaceY + colliderSize.Y / 2 + 0.01
-				Controller.Collider.CFrame = Controller.Collider.CFrame + Vector3.new(0, newCenterY - Controller.Collider.Position.Y, 0)
+		local LongHit = workspace:Blockcast(CastOrigin, CastSize, Vector3.new(0, -(CAST_LIFT + STEP_HEIGHT), 0), Params)
+		if LongHit then
+			local Dot = LongHit.Normal:Dot(Vector3.yAxis)
+			if Dot >= MIN_GROUND_NORMAL_Y then
+				local SurfaceY = CastOrigin.Position.Y - 0.025 - LongHit.Distance
+				local NewCenterY = SurfaceY + ColliderSize.Y / 2 + 0.01
+				Controller.Collider.CFrame = Controller.Collider.CFrame + Vector3.new(0, NewCenterY - Controller.Collider.Position.Y, 0)
 
-				local v = Controller.Collider.AssemblyLinearVelocity
-				Controller.Collider.AssemblyLinearVelocity = Vector3.new(v.X, 0, v.Z)
+				local V = Controller.Collider.AssemblyLinearVelocity
+				Controller.Collider.AssemblyLinearVelocity = Vector3.new(V.X, 0, V.Z)
 
 				Controller.Grounded = true
-				Controller.GroundCastResult = longHit
-				Controller.NormalDotProduct = dot
+				Controller.GroundCastResult = LongHit
+				Controller.NormalDotProduct = Dot
 				return
 			end
 		end
 	end
 
 	if Controller._Debug and Controller._ShowGroundCast then
-		local castStart = castOrigin.Position
-		local castEnd = castStart + Vector3.new(0, -(CAST_LIFT + STEP_HEIGHT), 0)
+		local CastStart = CastOrigin.Position
+		local CastEnd = CastStart + Vector3.new(0, -(CAST_LIFT + STEP_HEIGHT), 0)
 		ImGizmo.PushProperty("Color3", Controller.Grounded and Color3.new(0.1, 1, 0.1) or Color3.new(1, 0.1, 0.1))
-		ImGizmo.Arrow:Draw(castStart, castEnd, 0.08, 0.2, 10)
+		ImGizmo.Arrow:Draw(CastStart, CastEnd, 0.08, 0.2, 10)
 
 		ImGizmo.PushProperty("Color3", Controller.Grounded and Color3.new(0.1, 1, 0.1) or Color3.new(1, 0.1, 0.1))
-		ImGizmo.Box:Draw(CFrame.new(castEnd), castSize, false)
+		ImGizmo.Box:Draw(CFrame.new(CastEnd), CastSize, false)
 
 		if Controller.GroundCastResult then
-			local normalOrigin = Controller.Collider.Position - Vector3.yAxis * (colliderSize.Y / 2)
-			local clampedDot = math.clamp(Controller.NormalDotProduct, 0, 1)
-			ImGizmo.PushProperty("Color3", Color3.new(1, clampedDot, 0))
+			local NormalOrigin = Controller.Collider.Position - Vector3.yAxis * (ColliderSize.Y / 2)
+			local ClampedDot = math.clamp(Controller.NormalDotProduct, 0, 1)
+			ImGizmo.PushProperty("Color3", Color3.new(1, ClampedDot, 0))
 			ImGizmo.Arrow:Draw(
-				normalOrigin,
-				normalOrigin + Controller.GroundCastResult.Normal * 1.5,
+				NormalOrigin,
+				NormalOrigin + Controller.GroundCastResult.Normal * 1.5,
 				0.06, 0.2, 10
 			)
 
 			-- Slope down-hill direction (gravity projected onto slope plane).
 			-- Light blue arrow shows where you'd slide if airborne on this surface.
-			local normal = Controller.GroundCastResult.Normal
-			local downhill = ProjectOnPlane(Vector3.new(0, -1, 0), normal)
-			if downhill.Magnitude > 0.001 then
-				local dh = downhill.Unit
+			local Normal = Controller.GroundCastResult.Normal
+			local Downhill = ProjectOnPlane(Vector3.new(0, -1, 0), Normal)
+			if Downhill.Magnitude > 0.001 then
+				local Dh = Downhill.Unit
 				ImGizmo.PushProperty("Color3", Color3.new(0.4, 0.7, 1))
-				ImGizmo.Arrow:Draw(normalOrigin, normalOrigin + dh * 1.5, 0.06, 0.2, 10)
+				ImGizmo.Arrow:Draw(NormalOrigin, NormalOrigin + Dh * 1.5, 0.06, 0.2, 10)
 			end
 
 			-- Slope angle in degrees. White text above the contact point. The
 			-- walkable threshold is at acos(MIN_GROUND_NORMAL_Y) ≈ 45.57°.
-			local angle = math.deg(math.acos(math.clamp(clampedDot, -1, 1)))
+			local Angle = math.deg(math.acos(math.clamp(ClampedDot, -1, 1)))
 			ImGizmo.PushProperty("Color3", Color3.new(1, 1, 1))
-			ImGizmo.Text:Draw(normalOrigin + Vector3.new(0, 0.4, 0), string.format("%.1f°", angle), 14)
+			ImGizmo.Text:Draw(NormalOrigin + Vector3.new(0, 0.4, 0), string.format("%.1f°", Angle), 14)
 		end
 	end
 end
 
-function Controller:DoJump(velocity)
+function Controller:DoJump(Velocity)
 	Controller.Jump = false
-	if not Controller.Grounded then return velocity end
-	if not Controller.WishJump then return velocity end
+	if not Controller.Grounded then return Velocity end
+	if not Controller.WishJump then return Velocity end
 
 	Controller.Jump = true
 	Controller.Grounded = false
 
-	return Vector3.new(velocity.X, JUMP_SPEED, velocity.Z)
+	return Vector3.new(Velocity.X, JUMP_SPEED, Velocity.Z)
 end
 
-function Controller:DoMove(velocity, dt)
-	local wishdir = Controller.MoveVector
+function Controller:DoMove(Velocity, Dt)
+	local Wishdir = Controller.MoveVector
 
 	if Controller.Grounded then
 		-- Friction + accelerate on the horizontal component (Source order), then
@@ -495,27 +495,27 @@ function Controller:DoMove(velocity, dt)
 		-- so walking up doesn't lose cos(angle) of speed). This is the projection
 		-- the old MovementController used in `ProjectForceOntoGround`, ported to
 		-- velocity-based movement with the magnitude-preservation fix.
-		velocity = Vector3.new(velocity.X, 0, velocity.Z)
-		velocity = ApplyFriction(velocity, dt)
-		velocity = Accelerate(velocity, wishdir, MAX_GROUND_SPEED, SV_ACCELERATE, dt)
-		velocity = Vector3.new(velocity.X, 0, velocity.Z)
-		Controller.Diag.VelAfterAccel = velocity
+		Velocity = Vector3.new(Velocity.X, 0, Velocity.Z)
+		Velocity = ApplyFriction(Velocity, Dt)
+		Velocity = Accelerate(Velocity, Wishdir, MAX_GROUND_SPEED, SV_ACCELERATE, Dt)
+		Velocity = Vector3.new(Velocity.X, 0, Velocity.Z)
+		Controller.Diag.VelAfterAccel = Velocity
 		if Controller.GroundCastResult then
-			velocity = ClipVelocityToSlope(velocity, Controller.GroundCastResult.Normal)
+			Velocity = ClipVelocityToSlope(Velocity, Controller.GroundCastResult.Normal)
 		end
-		Controller.Diag.VelAfterSlope = velocity
+		Controller.Diag.VelAfterSlope = Velocity
 	else
-		velocity = AirAccelerate(velocity, wishdir, MAX_GROUND_SPEED, SV_AIRACCELERATE, dt)
-		Controller.Diag.VelAfterAccel = velocity
-		Controller.Diag.VelAfterSlope = velocity
+		Velocity = AirAccelerate(Velocity, Wishdir, MAX_GROUND_SPEED, SV_AIRACCELERATE, Dt)
+		Controller.Diag.VelAfterAccel = Velocity
+		Controller.Diag.VelAfterSlope = Velocity
 	end
 
-	return velocity
+	return Velocity
 end
 
-function Controller:DoGravity(velocity, dt)
-	if Controller.Grounded then return velocity end
-	return velocity - Vector3.new(0, SOURCE_GRAVITY * dt, 0)
+function Controller:DoGravity(Velocity, Dt)
+	if Controller.Grounded then return Velocity end
+	return Velocity - Vector3.new(0, SOURCE_GRAVITY * Dt, 0)
 end
 
 -- Take a desired velocity, run Collide and Slide on its frame displacement, and
@@ -524,42 +524,42 @@ end
 --
 -- In debug mode, runs 5 frames forward (applying gravity for airborne segments)
 -- so the visualization shows future bounces fading out into the distance.
-function Controller:ClipMotion(velocity: Vector3, dt: number): Vector3
+function Controller:ClipMotion(Velocity: Vector3, Dt: number): Vector3
 	local Params = RaycastParams.new()
 	Params.FilterType = Enum.RaycastFilterType.Exclude
 	Params.IgnoreWater = true
 	Params.FilterDescendantsInstances = {Controller.Character}
 
-	local size = Controller.Collider.Size
+	local Size = Controller.Collider.Size
 
-	-- Always compute the actual frame's clipped motion using real dt.
-	local actualClipped = CollideAndSlide(velocity * dt, Controller.Collider.CFrame, size, Params, 0, nil)
+	-- Always compute the actual frame's clipped motion using real Dt.
+	local ActualClipped = CollideAndSlide(Velocity * Dt, Controller.Collider.CFrame, Size, Params, 0, nil)
 
 	if Controller._Debug and Controller._ShowCollideSlide then
 		-- Predict PREDICTION_DURATION seconds into the future in equal slices.
-		-- Slice time is fixed (not real dt) so the visualization covers the same
+		-- Slice time is fixed (not real Dt) so the visualization covers the same
 		-- amount of simulated time at any framerate.
-		local stepDt = PREDICTION_DURATION / PREDICTION_STEPS
-		local simOrigin = Controller.Collider.CFrame
-		local simVelocity = velocity
+		local StepDt = PREDICTION_DURATION / PREDICTION_STEPS
+		local SimOrigin = Controller.Collider.CFrame
+		local SimVelocity = Velocity
 
-		for s = 1, PREDICTION_STEPS do
-			local steps = {}
-			local clipped = CollideAndSlide(simVelocity * stepDt, simOrigin, size, Params, 0, steps)
+		for S = 1, PREDICTION_STEPS do
+			local Steps = {}
+			local Clipped = CollideAndSlide(SimVelocity * StepDt, SimOrigin, Size, Params, 0, Steps)
 
 			-- Brightness fades with distance into the future.
-			local progress = (s - 1) / PREDICTION_STEPS
-			local alpha = math.max(0.18, 1 - progress * 0.82)
-			Controller:_DrawCollideAndSlideSteps(steps, alpha)
+			local Progress = (S - 1) / PREDICTION_STEPS
+			local Alpha = math.max(0.18, 1 - Progress * 0.82)
+			Controller:_DrawCollideAndSlideSteps(Steps, Alpha)
 
-			simOrigin = simOrigin + clipped
-			simVelocity = clipped / stepDt - Vector3.new(0, SOURCE_GRAVITY * stepDt, 0)
+			SimOrigin = SimOrigin + Clipped
+			SimVelocity = Clipped / StepDt - Vector3.new(0, SOURCE_GRAVITY * StepDt, 0)
 
-			if clipped.Magnitude < 0.01 then break end
+			if Clipped.Magnitude < 0.01 then break end
 		end
 	end
 
-	return actualClipped / dt
+	return ActualClipped / Dt
 end
 
 -- Visualize each bounce of one Collide and Slide pass.
@@ -568,80 +568,80 @@ end
 -- Free-end box (green): hull at where a non-hit bounce moved to.
 -- Hit normal (red): arrow at the contact point along the surface normal.
 -- Slide arrow (magenta): the leftover motion projected onto the surface.
-function Controller:_DrawCollideAndSlideSteps(steps, alpha: number)
-	local size = Controller.Collider.Size
-	for _, step in steps do
-		ImGizmo.PushProperty("Color3", Color3.new(0.3 * alpha, 0.7 * alpha, alpha))
-		ImGizmo.Box:Draw(step.startCFrame, size, false)
+function Controller:_DrawCollideAndSlideSteps(Steps, Alpha: number)
+	local Size = Controller.Collider.Size
+	for _, Step in Steps do
+		ImGizmo.PushProperty("Color3", Color3.new(0.3 * Alpha, 0.7 * Alpha, Alpha))
+		ImGizmo.Box:Draw(Step.StartCFrame, Size, false)
 
-		if step.hit then
-			ImGizmo.PushProperty("Color3", Color3.new(alpha, 0.5 * alpha, 0))
-			ImGizmo.Box:Draw(step.snapCFrame, size, false)
+		if Step.Hit then
+			ImGizmo.PushProperty("Color3", Color3.new(Alpha, 0.5 * Alpha, 0))
+			ImGizmo.Box:Draw(Step.SnapCFrame, Size, false)
 
-			ImGizmo.PushProperty("Color3", Color3.new(alpha, 0.1 * alpha, 0.1 * alpha))
+			ImGizmo.PushProperty("Color3", Color3.new(Alpha, 0.1 * Alpha, 0.1 * Alpha))
 			ImGizmo.Arrow:Draw(
-				step.hit.Position,
-				step.hit.Position + step.hit.Normal * 1.5,
+				Step.Hit.Position,
+				Step.Hit.Position + Step.Hit.Normal * 1.5,
 				0.08, 0.2, 10
 			)
 
-			if step.leftover and step.leftover.Magnitude > 0.001 then
-				local from = step.snapCFrame.Position
-				ImGizmo.PushProperty("Color3", Color3.new(alpha, 0.2 * alpha, alpha))
-				ImGizmo.Arrow:Draw(from, from + step.leftover.Unit * 1.5, 0.08, 0.2, 10)
+			if Step.Leftover and Step.Leftover.Magnitude > 0.001 then
+				local From = Step.SnapCFrame.Position
+				ImGizmo.PushProperty("Color3", Color3.new(Alpha, 0.2 * Alpha, Alpha))
+				ImGizmo.Arrow:Draw(From, From + Step.Leftover.Unit * 1.5, 0.08, 0.2, 10)
 			end
 		else
-			ImGizmo.PushProperty("Color3", Color3.new(0.2 * alpha, alpha, 0.2 * alpha))
-			ImGizmo.Box:Draw(step.endCFrame, size, false)
+			ImGizmo.PushProperty("Color3", Color3.new(0.2 * Alpha, Alpha, 0.2 * Alpha))
+			ImGizmo.Box:Draw(Step.EndCFrame, Size, false)
 		end
 	end
 end
 
 -- Source's StepMove. Try forward, try lift→forward→drop, take the path that
 -- went further horizontally.
-function Controller:DoStairStep(velocity, dt)
-	if not Controller.Grounded then return velocity end
+function Controller:DoStairStep(Velocity, Dt)
+	if not Controller.Grounded then return Velocity end
 
-	local horizontal = Vector3.new(velocity.X, 0, velocity.Z)
-	if horizontal.Magnitude < 0.5 then return velocity end
+	local Horizontal = Vector3.new(Velocity.X, 0, Velocity.Z)
+	if Horizontal.Magnitude < 0.5 then return Velocity end
 
 	local Params = RaycastParams.new()
 	Params.FilterType = Enum.RaycastFilterType.Exclude
 	Params.IgnoreWater = true
 	Params.FilterDescendantsInstances = {Controller.Character}
 
-	local size = Controller.Collider.Size
-	local origin = Controller.Collider.CFrame
-	local moveDelta = horizontal.Unit * math.max(horizontal.Magnitude * dt, 0.3)
-	local moveLen = moveDelta.Magnitude
+	local Size = Controller.Collider.Size
+	local Origin = Controller.Collider.CFrame
+	local MoveDelta = Horizontal.Unit * math.max(Horizontal.Magnitude * Dt, 0.3)
+	local MoveLen = MoveDelta.Magnitude
 
-	local forwardHit = workspace:Blockcast(origin, size, moveDelta, Params)
-	if not forwardHit then return velocity end
+	local ForwardHit = workspace:Blockcast(Origin, Size, MoveDelta, Params)
+	if not ForwardHit then return Velocity end
 	-- Don't try to step on walkable slopes — DoMove projects velocity onto the
 	-- slope and walks us up smoothly. Stepping only helps for risers/walls.
-	if forwardHit.Normal:Dot(Vector3.yAxis) >= MIN_GROUND_NORMAL_Y then return velocity end
-	local forwardDistance = forwardHit.Distance
+	if ForwardHit.Normal:Dot(Vector3.yAxis) >= MIN_GROUND_NORMAL_Y then return Velocity end
+	local ForwardDistance = ForwardHit.Distance
 
-	local clearanceHit = workspace:Blockcast(origin, size, Vector3.new(0, STEP_HEIGHT, 0), Params)
-	if clearanceHit then return velocity end
+	local ClearanceHit = workspace:Blockcast(Origin, Size, Vector3.new(0, STEP_HEIGHT, 0), Params)
+	if ClearanceHit then return Velocity end
 
-	local liftedOrigin = origin + Vector3.new(0, STEP_HEIGHT, 0)
-	local liftedHit = workspace:Blockcast(liftedOrigin, size, moveDelta, Params)
-	local liftedDistance = liftedHit and liftedHit.Distance or moveLen
+	local LiftedOrigin = Origin + Vector3.new(0, STEP_HEIGHT, 0)
+	local LiftedHit = workspace:Blockcast(LiftedOrigin, Size, MoveDelta, Params)
+	local LiftedDistance = LiftedHit and LiftedHit.Distance or MoveLen
 
-	if liftedDistance <= forwardDistance + 0.01 then return velocity end
+	if LiftedDistance <= ForwardDistance + 0.01 then return Velocity end
 
-	local liftedEnd = liftedOrigin + moveDelta.Unit * liftedDistance
-	local landHit = workspace:Blockcast(liftedEnd, size, Vector3.new(0, -(STEP_HEIGHT + 0.1), 0), Params)
-	if not landHit then return velocity end
-	if landHit.Normal:Dot(Vector3.yAxis) < MIN_GROUND_NORMAL_Y then return velocity end
+	local LiftedEnd = LiftedOrigin + MoveDelta.Unit * LiftedDistance
+	local LandHit = workspace:Blockcast(LiftedEnd, Size, Vector3.new(0, -(STEP_HEIGHT + 0.1), 0), Params)
+	if not LandHit then return Velocity end
+	if LandHit.Normal:Dot(Vector3.yAxis) < MIN_GROUND_NORMAL_Y then return Velocity end
 
-	local liftAmount = STEP_HEIGHT - landHit.Distance + 0.05
-	if liftAmount > 0 and liftAmount <= STEP_HEIGHT then
-		Controller.Collider.CFrame = origin + Vector3.new(0, liftAmount, 0)
+	local LiftAmount = STEP_HEIGHT - LandHit.Distance + 0.05
+	if LiftAmount > 0 and LiftAmount <= STEP_HEIGHT then
+		Controller.Collider.CFrame = Origin + Vector3.new(0, LiftAmount, 0)
 	end
 
-	return velocity
+	return Velocity
 end
 
 return Controller
