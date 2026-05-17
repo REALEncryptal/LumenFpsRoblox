@@ -80,7 +80,10 @@ function Controller:Init()
 	Controller.BaseVelocity = Vector3.zero
 	Controller._PlatformPositions = setmetatable({}, {__mode = "k"}) :: any
 
-	Controller.Signals.CharacterAdded(LocalPlayer.Character)
+	-- WaitForChild("Collider") inside CharacterAdded would block Cito's serial
+	-- Init loop if the server is slow to assemble the rig — meaning no other
+	-- client controller would Init either. Spawn it so Init returns now.
+	task.spawn(Controller.Signals.CharacterAdded, LocalPlayer.Character)
 
 	Iris:Connect(function()
 		local WindowSize = Iris.State(Vector2.new(260, 460))
@@ -149,6 +152,19 @@ function Controller.Signals.CharacterAdded(Character: Model)
 	Controller.VelocityInstance = Character:WaitForChild("Velocity")
 	Controller.VelocityInstance.Enabled = false
 
+	-- Hide own body locally so first-person stays viewmodel-only.
+	-- LocalTransparencyModifier doesn't replicate, so other players still
+	-- see the rig assembled by server CharacterController.
+	local function HidePart(Part: Instance)
+		if not Part:IsA("BasePart") then return end
+		if Part.Name == "Collider" then return end
+		Part.LocalTransparencyModifier = 1
+	end
+	for _, Descendant in ipairs(Character:GetDescendants()) do
+		HidePart(Descendant)
+	end
+	Character.DescendantAdded:Connect(HidePart)
+
 	-- Resize hull to Source-style proportions.
 	local OldSize = Controller.Collider.Size
 	Controller.Collider.Size = HULL_SIZE
@@ -184,6 +200,15 @@ function Controller.Signals.CharacterAdded(Character: Model)
 		if not Controller.Collider or not Controller.Collider.Parent then return end
 		local Size = Controller.Collider.Size
 		Camera.CFrame = Camera.CFrame + Vector3.new(0, Size.Y / 2 - EYE_OFFSET_FROM_TOP, 0)
+
+		-- Face the visible R6 body in the look direction. Yaw-only so the
+		-- hull stays upright; X/Z hull sizes are equal so this doesn't
+		-- change the collision footprint, and all casts in this controller
+		-- use world-axis vectors (not Collider orientation).
+		local Look = Camera.CFrame.LookVector
+		local Yaw = math.atan2(-Look.X, -Look.Z)
+		local Pos = Controller.Collider.Position
+		Controller.Collider.CFrame = CFrame.new(Pos) * CFrame.Angles(0, Yaw, 0)
 	end)
 end
 
