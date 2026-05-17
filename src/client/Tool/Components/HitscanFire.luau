@@ -10,7 +10,11 @@
         Automatic           boolean? — hold-to-fire when true; click-only otherwise
         ProjectileType      string?  — Hindsight definition key, defaults to "Bullet"
         FireAnimationName   string?  — defaults to "Fire"
-        RecoilImpulse       number?  — Y impulse fed into tool.Springs.Impact on each shot
+        RecoilImpulse       number?  — Y impulse fed into tool.Springs.Impact on each shot.
+                                     Falls back to tool.Data.RecoilImpulse, then 0.05.
+                                     Spring3 internally ×100s the shove, and ToolBase
+                                     multiplies the resulting position by 25 for viewmodel
+                                     rotation — values above ~0.1 read as violent.
 
     Depends on:
         AmmoStore       (required — consumes a round per shot)
@@ -43,7 +47,7 @@ function HitscanFire.new(tool, config)
     self.Automatic = if config.Automatic ~= nil then config.Automatic else tool.Data.Automatic
     self.ProjectileType = config.ProjectileType or "Bullet"
     self.FireAnimationName = config.FireAnimationName or "Fire"
-    self.RecoilImpulse = config.RecoilImpulse or 0.4
+    self.RecoilImpulse = config.RecoilImpulse or tool.Data.RecoilImpulse or 0.05
 
     self.WishFire = false
     self.WasWishFire = false
