@@ -1,32 +1,32 @@
-local function calculateRawMoveVector(cameraRelativeMoveVector: Vector3, swimming:boolean?): Vector3
-	local camera = workspace.CurrentCamera
-	if not camera then
-		return cameraRelativeMoveVector
+local function CalculateRawMoveVector(CameraRelativeMoveVector: Vector3, Swimming: boolean?): Vector3
+	local Camera = workspace.CurrentCamera
+	if not Camera then
+		return CameraRelativeMoveVector
 	end
-	local cameraCFrame = camera.CFrame
+	local CameraCFrame = Camera.CFrame
 
-	if swimming then	
-		return cameraCFrame:VectorToWorldSpace(cameraRelativeMoveVector)
+	if Swimming then
+		return CameraCFrame:VectorToWorldSpace(CameraRelativeMoveVector)
 	end
 
-	local c, s
-	local _, _, _, R00, R01, R02, _, _, R12, _, _, R22 = cameraCFrame:GetComponents()
+	local C, S
+	local _, _, _, R00, R01, R02, _, _, R12, _, _, R22 = CameraCFrame:GetComponents()
 	if R12 < 1 and R12 > -1 then
 		-- X and Z components from back vector.
-		c = R22
-		s = R02
+		C = R22
+		S = R02
 	else
 		-- In this case the camera is looking straight up or straight down.
 		-- Use X components from right and up vectors.
-		c = R00
-		s = -R01*math.sign(R12)
+		C = R00
+		S = -R01 * math.sign(R12)
 	end
-	local norm = math.sqrt(c*c + s*s)
+	local Norm = math.sqrt(C * C + S * S)
 	return Vector3.new(
-		(c*cameraRelativeMoveVector.X + s*cameraRelativeMoveVector.Z)/norm,
+		(C * CameraRelativeMoveVector.X + S * CameraRelativeMoveVector.Z) / Norm,
 		0,
-		(c*cameraRelativeMoveVector.Z - s*cameraRelativeMoveVector.X)/norm
+		(C * CameraRelativeMoveVector.Z - S * CameraRelativeMoveVector.X) / Norm
 	)
 end
 
-return calculateRawMoveVector
+return CalculateRawMoveVector
