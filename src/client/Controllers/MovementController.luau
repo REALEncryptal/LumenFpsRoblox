@@ -61,14 +61,24 @@ function Controller:Init()
 	-- step did. Magenta arrow in the world view visualizes the perpendicular
 	-- (drift) component of the final horizontal velocity relative to wishdir.
 	Controller.Diag = {
-		VelIn = Vector3.zero,         -- read from collider at start of Update
+		VelIn = Vector3.zero,         -- intrinsic velocity at start of Update (BaseVelocity already subtracted)
 		VelAfterAccel = Vector3.zero, -- after friction + Accelerate (horizontal only)
 		VelAfterSlope = Vector3.zero, -- after ClipVelocityToSlope rotates onto slope plane
-		VelAfterClip = Vector3.zero,  -- after CollideAndSlide
+		VelAfterClip = Vector3.zero,  -- after CollideAndSlide; equals AssemblyLinearVelocity write
+		BaseVel = Vector3.zero,       -- this frame's platform velocity contribution
 		HorizSpeed = 0,
 		DriftSpeed = 0,               -- |component of horiz velocity perpendicular to wishdir|
 		DriftSign = 0,                -- +1 right of wishdir, -1 left of wishdir, 0 if no input
 	}
+
+	-- Source-style moving platform support. The platform's velocity is folded
+	-- into displacement integration only — friction/accel/gravity operate on
+	-- intrinsic velocity (AssemblyLinearVelocity minus BaseVelocity) so the
+	-- player's input math is unaffected by the ride. Anchored platforms have
+	-- their position cached so we can derive velocity from the per-frame delta;
+	-- unanchored parts use AssemblyLinearVelocity directly.
+	Controller.BaseVelocity = Vector3.zero
+	Controller._PlatformPositions = setmetatable({}, {__mode = "k"}) :: any
 
 	Controller.Signals.CharacterAdded(LocalPlayer.Character)
 
@@ -112,6 +122,7 @@ function Controller:Init()
 		Iris.Text({string.format("AfterAcc: (%.2f, %.2f, %.2f)", D.VelAfterAccel.X, D.VelAfterAccel.Y, D.VelAfterAccel.Z)})
 		Iris.Text({string.format("AfterSlp: (%.2f, %.2f, %.2f)", D.VelAfterSlope.X, D.VelAfterSlope.Y, D.VelAfterSlope.Z)})
 		Iris.Text({string.format("AfterClp: (%.2f, %.2f, %.2f)", D.VelAfterClip.X, D.VelAfterClip.Y, D.VelAfterClip.Z)})
+		Iris.Text({string.format("BaseVel:  (%.2f, %.2f, %.2f)", D.BaseVel.X, D.BaseVel.Y, D.BaseVel.Z)})
 
 		Controller._Debug = DebugState.value
 		Controller._ShowHitbox = HitboxState.value
@@ -286,6 +297,22 @@ local function CollideAndSlide(Displacement: Vector3, Origin: CFrame, Size: Vect
 	return Snap + CollideAndSlide(Leftover, Origin + Snap, Size, Params, Depth + 1, DebugSteps)
 end
 
+-- Source's BaseVelocity for moving platforms. For unanchored platforms the
+-- physics solver maintains AssemblyLinearVelocity; for anchored (tween-driven)
+-- platforms we cache the part's position per Update and derive velocity from
+-- the delta. The first contact with an anchored part lags by one frame because
+-- the cache is empty — friction absorbs this quickly.
+function Controller:GetPlatformVelocity(Part: BasePart?, Dt: number): Vector3
+	if not Part or Dt <= 0 then return Vector3.zero end
+	if not Part.Anchored then
+		return Part.AssemblyLinearVelocity
+	end
+	local Last = Controller._PlatformPositions[Part]
+	Controller._PlatformPositions[Part] = Part.Position
+	if not Last then return Vector3.zero end
+	return (Part.Position - Last) / Dt
+end
+
 function Controller.Signals.Update(DeltaTime: number)
 	if not Controller.Collider then return end
 
@@ -296,16 +323,43 @@ function Controller.Signals.Update(DeltaTime: number)
 
 	Controller:DoGroundCast()
 
-	local Velocity = Controller.Collider.AssemblyLinearVelocity
+	-- Recover intrinsic velocity by stripping last frame's platform contribution.
+	-- Friction/accel/gravity below operate on intrinsic — the platform's motion
+	-- is reinserted only for the displacement integration pass.
+	local Velocity = Controller.Collider.AssemblyLinearVelocity - Controller.BaseVelocity
 	Controller.Diag.VelIn = Velocity
 	Velocity = Controller:DoJump(Velocity)
 	Velocity = Controller:DoMove(Velocity, DeltaTime)
 	Velocity = Controller:DoStairStep(Velocity, DeltaTime)
 	Velocity = Controller:DoGravity(Velocity, DeltaTime)
-	Velocity = Controller:ClipMotion(Velocity, DeltaTime)
-	Controller.Diag.VelAfterClip = Velocity
 
-	Controller.Collider.AssemblyLinearVelocity = Velocity
+	-- Resolve this frame's platform velocity (zero if airborne or no ground entity).
+	local Ground = Controller.Grounded and Controller.GroundCastResult and Controller.GroundCastResult.Instance or nil
+	local NewBase = Controller:GetPlatformVelocity(Ground, DeltaTime)
+
+	-- Source's SetGroundEntity transitions: fire only at air↔ground boundaries,
+	-- never continuously. While grounded on a platform that changes speed,
+	-- intrinsic stays put and friction lets world velocity = base velocity
+	-- (the player rides cleanly). Doing this every frame instead bled platform
+	-- momentum into intrinsic during decel — that was the "still sliding after
+	-- the platform stops" symptom.
+	if Controller.Grounded and not Controller.WasGrounded then
+		-- Landed: subtract new ground's velocity so we don't double-count it
+		-- (the carry already happens via NewBase below).
+		Velocity = Velocity - NewBase
+	elseif not Controller.Grounded and Controller.WasGrounded then
+		-- Left ground (jumped or walked off): bake last frame's platform
+		-- velocity into intrinsic so the jump arc keeps that momentum.
+		Velocity = Velocity + Controller.BaseVelocity
+	end
+
+	-- Collision-clip the combined motion, then split intrinsic back out.
+	Velocity = Controller:ClipMotion(Velocity + NewBase, DeltaTime) - NewBase
+	Controller.Diag.VelAfterClip = Velocity + NewBase
+	Controller.Diag.BaseVel = NewBase
+
+	Controller.Collider.AssemblyLinearVelocity = Velocity + NewBase
+	Controller.BaseVelocity = NewBase
 	Controller.ForceInstance.Force = Vector3.new(0, workspace.Gravity * Controller.Collider.AssemblyMass, 0)
 
 	-- Compute drift = horizontal velocity component perpendicular to wishdir.
