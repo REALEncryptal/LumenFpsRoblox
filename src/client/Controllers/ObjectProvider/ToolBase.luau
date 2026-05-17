@@ -97,7 +97,7 @@ function ToolBase.new( ToolFolder: Folder )
     self.Swapping = false
     self.Equipping = false
     self.Unequipping = false
-    
+
     self.ViewmodelCFrame = CFrame.new()
     self.CameraCFrame = nil
     self.PreviousCameraCFrame = nil
@@ -205,14 +205,14 @@ function ToolBase.new( ToolFolder: Folder )
         self.Viewmodel.PrimaryPart.CFrame = self.ViewmodelCFrame
     end)
 
-    -- Update camera cframe, seperated so children may add  
+    -- Update camera cframe, seperated so children may add.
+    -- Impact spring is intentionally NOT folded into the camera CFrame here —
+    -- the spring is damped/oscillating, so feeding it into the camera produces
+    -- the exact smooth chase that fights CameraController's Source-style snap.
+    -- Impact stays on the viewmodel (gun-jolt) only; camera kick goes through
+    -- CameraController:ApplyRecoil.
     self:AddUpdateTask("UpdateCameraCFrame", 102.5, function(DeltaTime: number)
         self.CameraCFrame = self.Viewmodel:FindFirstChild("CameraPart").CFrame:ToObjectSpace(self.Viewmodel.PrimaryPart.CFrame)
-        self.CameraCFrame *= CFrame.Angles(
-            math.rad(self.UpdatedSprings.Impact.Y * 2),
-            0,
-            0
-        ) 
 
         self.CameraCFrame *= CFrame.Angles(
             math.rad(self.UpdatedSprings.Walk.Y * -2),
@@ -225,7 +225,7 @@ function ToolBase.new( ToolFolder: Folder )
     self:AddUpdateTask("Update", 106, function(DeltaTime: number)
         if not self.Enabled then return end
         if not self.Equipped and not self.Swapping then return end
-        
+
         workspace.CurrentCamera.CFrame *= self.PreviousCameraCFrame and self.PreviousCameraCFrame:Inverse() or CFrame.new()
 
         -- Crosshair sits between the camera invert and re-apply so it lives in

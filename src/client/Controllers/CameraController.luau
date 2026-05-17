@@ -7,14 +7,16 @@ local Controller = {
 
 Controller.Priority = 20
 
--- Source-style view punch. Single accumulator; firing slams it instantly
--- (no smoothing on the climb), each frame it decays exponentially back to
--- zero. No lerp, no chase between two states — the only physics is the
--- decay. Camera CFrame is rotated by Punch AFTER the default camera writes
--- the frame's mouse-look CFrame, so the punch stacks on top of mouse input
--- and the player's aim is preserved through the kick.
+-- Source-style snap recoil. Each shot rotates the aim to a new orientation
+-- instantly and the offset persists — no decay, no return wobble. Player
+-- compensates by aiming back with the mouse, like spraying an AK in CS.
+--
+-- Roblox's default Custom camera re-derives Camera.CFrame from its internal
+-- pitch/yaw each frame, so a one-time rotation would be overwritten on the
+-- next frame. We re-apply Punch every render step at Camera+2 (after the
+-- default camera AND MovementController's eye-height bind at Camera+1) to
+-- keep the offset stuck on top of mouse-look.
 Controller.Punch = Vector2.new()
-Controller.PunchDecay = 14  -- per-second exponential decay (~70ms time constant; high = each kick recovers fast enough to read as a discrete thump instead of drift)
 
 local RECOIL_BIND = "Lumen_RecoilApply"
 
@@ -25,29 +27,24 @@ function Controller:Init()
 
     Controller:SetFOV(SettingsController:GetSetting("FOV"))
 
-    -- Priority Camera + 2 runs after Roblox's default camera (200) AND
-    -- MovementController's eye-height bind (201) so the rotation composes
-    -- cleanly on top of both.
-    RunService:BindToRenderStep(RECOIL_BIND, Enum.RenderPriority.Camera.Value + 2, function(DeltaTime)
-        Controller:_UpdateRecoil(DeltaTime)
+    RunService:BindToRenderStep(RECOIL_BIND, Enum.RenderPriority.Camera.Value + 2, function()
+        if Controller.Punch.Magnitude > 1e-4 then
+            Controller.Instance.CFrame = Controller.Instance.CFrame
+                * CFrame.Angles(math.rad(Controller.Punch.X), math.rad(Controller.Punch.Y), 0)
+        end
     end)
 end
 
--- Instant view punch. Pitch is degrees of camera-up rotation; Yaw is degrees
--- of camera-yaw rotation (callers should randomize sign so bursts spray
--- instead of drifting one direction). Adds directly to Punch — the camera
--- jumps this much on the very next frame, no ramp.
+-- Snap kick. Pitch is degrees of upward rotation (positive = up); Yaw is
+-- degrees of horizontal rotation (callers should randomize sign so bursts
+-- spray instead of drifting one direction). Offset is permanent until the
+-- player aims back or ResetRecoil is called.
 function Controller:ApplyRecoil(Pitch: number, Yaw: number)
     Controller.Punch = Controller.Punch + Vector2.new(Pitch, Yaw)
 end
 
-function Controller:_UpdateRecoil(DeltaTime: number)
-    Controller.Punch = Controller.Punch * math.exp(-Controller.PunchDecay * DeltaTime)
-
-    if Controller.Punch.Magnitude > 1e-4 then
-        Controller.Instance.CFrame = Controller.Instance.CFrame
-            * CFrame.Angles(math.rad(Controller.Punch.X), math.rad(Controller.Punch.Y), 0)
-    end
+function Controller:ResetRecoil()
+    Controller.Punch = Vector2.new()
 end
 
 -- FIELD OF VIEW

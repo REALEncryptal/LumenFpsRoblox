@@ -40,14 +40,6 @@
 local CameraController = shared.Import("CameraController")
 local ProjectileController = shared.Import("ProjectileController")
 
--- Probe distance for the "where is the player looking" raycast that anchors the
--- visual tracer's endpoint. Comfortably exceeds Bullet's max travel
--- (velocity 1000 × lifetime 3 = 3000 studs).
-local AIM_PROBE_RANGE = 5000
-
--- Debug auto-fire cadence. Independent of RPM so the tester picks the rate.
-local DEBUG_AUTO_FIRE_INTERVAL = 0.25
-
 local HitscanFire = {}
 HitscanFire.__index = HitscanFire
 
@@ -78,15 +70,6 @@ function HitscanFire.new(Tool, Config)
     self.WasWishFire = false
     self.LastShot = 0
 
-    -- Debug toggles surfaced by CreateDebug. Bypass ammo consumption and drive
-    -- a fixed-cadence auto-trigger so a tester can profile fire without holding
-    -- the mouse or reloading. Off by default; CreateDebug writes them every
-    -- frame while the panel is open and Iris state persists across re-renders,
-    -- so toggles stay where you left them (including with the panel closed).
-    self.DebugInfAmmo = false
-    self.DebugAutoFire = false
-    self.DebugAutoFireLast = 0
-
     return self
 end
 
@@ -94,14 +77,6 @@ function HitscanFire:Init()
     -- Priority 104 matches the legacy Firearm.UpdateFire — same place in the
     -- pipeline so spring shoves on fire reflect this frame's recoil.
     self.Tool:AddUpdateTask("UpdateFire", 104, function(_Dt)
-        if self.DebugAutoFire then
-            local Now = tick()
-            if (Now - self.DebugAutoFireLast) >= DEBUG_AUTO_FIRE_INTERVAL then
-                self.DebugAutoFireLast = Now
-                self:_AttemptFire(true)
-            end
-        end
-
         if self.WishFire then
             self:_AttemptFire(not self.WasWishFire)
         end
@@ -118,10 +93,8 @@ end
 function HitscanFire:_CanFire(): boolean
     if not self.Tool.Equipped or self.Tool.Swapping then return false end
 
-    if not self.DebugInfAmmo then
-        local Ammo = self.Tool:GetComponent("AmmoStore")
-        if not Ammo or Ammo:IsEmpty() then return false end
-    end
+    local Ammo = self.Tool:GetComponent("AmmoStore")
+    if not Ammo or Ammo:IsEmpty() then return false end
 
     local Now = tick()
     if (Now - self.LastShot) < 60 / self.RPM then return false end
@@ -162,19 +135,18 @@ function HitscanFire:_AttemptFire(IsClick: boolean)
 end
 
 function HitscanFire:_DoFire()
-    if not self.DebugInfAmmo then
-        local Ammo = self.Tool:GetComponent("AmmoStore")
-        if Ammo then Ammo:Consume(1) end
-    end
+    local Ammo = self.Tool:GetComponent("AmmoStore")
+    if Ammo then Ammo:Consume(1) end
     self.LastShot = tick()
 
     -- Two parallel recoil channels: the Impact spring drives the *viewmodel*
     -- kick (visual feedback only — fully recovers via spring damping), and
-    -- CameraController:ApplyRecoil drives the *aim* kick (actually rotates the
-    -- camera so the player has to compensate). Vertical and horizontal magnitudes
-    -- are rolled uniformly inside their per-weapon ranges; YawSign is randomized
-    -- so bursts spray instead of drifting one direction; a small lateral Impact-X
-    -- shove lets the viewmodel slide with the yaw for visual coherence.
+    -- CameraController:ApplyRecoil drives the *aim* kick (Source-style snap —
+    -- the offset persists until the player aims back, no auto-recovery).
+    -- Vertical and horizontal magnitudes are rolled uniformly inside their
+    -- per-weapon ranges; YawSign is randomized so bursts spray instead of
+    -- drifting one direction; a small lateral Impact-X shove lets the
+    -- viewmodel slide with the yaw for visual coherence.
     local VR, HR = self.VerticalRecoil, self.HorizontalRecoil
     local Pitch = (VR[1] + math.random() * (VR[2] - VR[1])) * self.CameraRecoil
     local YawMag = (HR[1] + math.random() * (HR[2] - HR[1])) * self.CameraRecoil
@@ -190,48 +162,10 @@ function HitscanFire:_DoFire()
     -- Hindsight resolves the shot. Camera-space origin/direction matches the
     -- server's origin-drift validation tolerance.
     local Camera = workspace.CurrentCamera
-    local Origin = Camera.CFrame.Position
-    local Direction = Camera.CFrame.LookVector
-
-    -- Two-ray dual origin: the server still hit-resolves on the camera ray
-    -- (so aim stays pixel-accurate to the crosshair), but the visible tracer is
-    -- drawn from the muzzle attachment aimed at the camera ray's terminus.
-    -- Players read tracer endpoint against the crosshair, not actual trajectory,
-    -- so this hides the camera-vs-barrel offset without compromising hit-reg.
-    local VisualOrigin, VisualDirection
-    local Muzzle = self.Tool.Viewmodel:FindFirstChild("Muzzle", true)
-    if Muzzle and Muzzle:IsA("Attachment") then
-        local AimPoint = self:_ResolveAimPoint(Origin, Direction)
-        VisualOrigin = Muzzle.WorldPosition
-        VisualDirection = (AimPoint - VisualOrigin).Unit
-    end
-
-    ProjectileController:Cast(self.ProjectileType, Origin, Direction, VisualOrigin, VisualDirection)
+    ProjectileController:Cast(self.ProjectileType, Camera.CFrame.Position, Camera.CFrame.LookVector)
 
     local Animation = self.Tool.Animations[self.FireAnimationName]
     if Animation then Animation:Play(0) end
-end
-
--- Camera-aligned probe that finds whatever the player is "looking at" so the
--- muzzle tracer can be aimed at the same point. Excludes characters and bullets
--- to match the server's world filter; the viewmodel lives under CurrentCamera
--- so excluding the camera stops the probe from hitting the player's own gun.
-function HitscanFire:_ResolveAimPoint(Origin: Vector3, Direction: Vector3): Vector3
-    local Params = self._AimProbeParams
-    if not Params then
-        Params = RaycastParams.new()
-        Params.FilterType = Enum.RaycastFilterType.Exclude
-        Params.IgnoreWater = true
-        self._AimProbeParams = Params
-    end
-    Params.FilterDescendantsInstances = {
-        workspace.CurrentCamera,
-        workspace:FindFirstChild("Characters"),
-        workspace:FindFirstChild("Bullets"),
-    }
-    local Result = workspace:Raycast(Origin, Direction * AIM_PROBE_RANGE, Params)
-    if Result then return Result.Position end
-    return Origin + Direction * AIM_PROBE_RANGE
 end
 
 function HitscanFire:CreateDebug(Iris)
@@ -246,27 +180,6 @@ function HitscanFire:CreateDebug(Iris)
     Iris.Text({"Time Since Last Shot: " .. TimeSince})
     Iris.Text({"RPM: " .. tostring(self.RPM)})
     Iris.Text({"Automatic: " .. (self.Automatic and YesText or NoText), nil, nil, true})
-
-    -- Iris.State persists across re-renders only if the *same* state object is
-    -- handed back each frame — cache on self so toggle values survive between
-    -- panel updates.
-    local InfAmmoState = self._DebugInfAmmoState
-    if not InfAmmoState then
-        InfAmmoState = Iris.State(false)
-        self._DebugInfAmmoState = InfAmmoState
-    end
-    local AutoFireState = self._DebugAutoFireState
-    if not AutoFireState then
-        AutoFireState = Iris.State(false)
-        self._DebugAutoFireState = AutoFireState
-    end
-
-    Iris.SeparatorText({"Debug"})
-    Iris.Checkbox({"Infinite Ammo"}, {isChecked = InfAmmoState})
-    Iris.Checkbox({string.format("Auto Fire (%.2fs)", DEBUG_AUTO_FIRE_INTERVAL)}, {isChecked = AutoFireState})
-
-    self.DebugInfAmmo = InfAmmoState.value
-    self.DebugAutoFire = AutoFireState.value
 end
 
 return HitscanFire
