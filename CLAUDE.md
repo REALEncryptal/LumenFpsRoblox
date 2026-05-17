@@ -52,6 +52,10 @@ What this means in practice:
   - `CharacterAdded`, `CharacterRemoving` → `LocalPlayer` (client only)
   Any other key under `Signals` is just a regular table entry — controllers sometimes invoke them manually (e.g. `Controller.Signals.CharacterAdded(LocalPlayer.Character)` to bootstrap on initial load, since the engine signal won't refire for the already-existing character).
 
+## Naming convention
+
+**All identifiers use PascalCase (UpperCamelCase) — first letter always uppercase.** This applies to local variables, function parameters, function names, methods, table keys, and module exports. No `myVar`, `doThing`, `localCount` — always `MyVar`, `DoThing`, `LocalCount`. Acronyms keep their casing (`HRP`, `UI`, `ID`). The only exceptions are Roblox/Luau built-ins (`self`, `script`, `game`, `workspace`, `tick`, `pairs`, `ipairs`, `print`, `task`, etc.) and third-party APIs you can't control.
+
 ## Other repo-specific conventions
 
 - **`src/client/Controllers/ObjectProvider/`** holds OOP "objects" (ToolBase, Firearm, ToolManager, Cutscene). The `init.luau` controller runs at priority 50 and `require`s siblings directly via `script:FindFirstChild(Name)` — it deliberately loads them post-Init so they can use `shared.Import`. Add new objects by extending `Controller:Init()` in `ObjectProvider/init.luau`.
