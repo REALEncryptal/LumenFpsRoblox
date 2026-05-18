@@ -7,27 +7,21 @@ local Controller = {
 
 Controller.Priority = 20
 
--- Punchy kick with smoothed recovery toward a residual drift floor.
+-- Punchy kick with smoothed full recovery to aim.
 --
--- Two-vector model:
---   Current — degrees actually applied to the camera this frame
---   Target  — degrees Current is easing toward (the residual / drift floor)
---
--- ApplyRecoil shoves Current by the full per-shot magnitude (instant snap-up)
--- and bumps Target by RESIDUAL_RATIO of that (the part that sticks). Every
--- render step Current eases toward Target via frame-rate-independent
--- exponential decay, so the camera snaps up and smoothly bleeds back to the
--- drift floor. Sustained fire compounds the drift — player still has to aim
--- back manually, but each shot's transient kick recovers on its own.
+-- Offset — degrees of pitch/yaw applied on top of mouse-look this frame.
+-- ApplyRecoil shoves Offset by the full per-shot impulse (instant snap-up).
+-- Every render step Offset eases toward zero via frame-rate-independent
+-- exponential decay, so the camera kicks and smoothly returns all the way
+-- back to where the player was aiming. Bursts stack on Offset (kicks compound
+-- while firing) but always recover to zero once firing stops.
 --
 -- Roblox's default Custom camera re-derives Camera.CFrame from mouse pitch/yaw
--- each frame, so we re-apply Current every render step at Camera+2 (after
--- the default camera AND MovementController's eye-height bind at Camera+1)
--- to keep the offset stacked on top of mouse-look.
-Controller.Current = Vector2.new()
-Controller.Target = Vector2.new()
+-- each frame, so we re-apply Offset every render step at Camera+2 (after the
+-- default camera AND MovementController's eye-height bind at Camera+1) to
+-- stack the kick on top of mouse-look.
+Controller.Offset = Vector2.new()
 
-local RESIDUAL_RATIO = 0.20
 local SMOOTHNESS = 12
 
 local RECOIL_BIND = "Lumen_RecoilApply"
@@ -41,28 +35,25 @@ function Controller:Init()
 
     RunService:BindToRenderStep(RECOIL_BIND, Enum.RenderPriority.Camera.Value + 2, function(DeltaTime)
         local Alpha = 1 - math.exp(-SMOOTHNESS * DeltaTime)
-        Controller.Current = Controller.Current:Lerp(Controller.Target, Alpha)
+        Controller.Offset = Controller.Offset:Lerp(Vector2.new(), Alpha)
 
-        if Controller.Current.Magnitude > 1e-4 then
+        if Controller.Offset.Magnitude > 1e-4 then
             Controller.Instance.CFrame = Controller.Instance.CFrame
-                * CFrame.Angles(math.rad(Controller.Current.X), math.rad(Controller.Current.Y), 0)
+                * CFrame.Angles(math.rad(Controller.Offset.X), math.rad(Controller.Offset.Y), 0)
         end
     end)
 end
 
 -- Per-shot kick. Pitch is degrees of upward rotation (positive = up); Yaw is
 -- degrees of horizontal rotation (callers should randomize sign so bursts
--- spray instead of drifting one direction). The full magnitude lands on
--- Current instantly; RESIDUAL_RATIO of it sticks to Target as drift.
+-- spray instead of drifting one direction). Stacks on the current Offset and
+-- decays smoothly back to zero — no permanent residual.
 function Controller:ApplyRecoil(Pitch: number, Yaw: number)
-    local Impulse = Vector2.new(Pitch, Yaw)
-    Controller.Current = Controller.Current + Impulse
-    Controller.Target = Controller.Target + Impulse * RESIDUAL_RATIO
+    Controller.Offset = Controller.Offset + Vector2.new(Pitch, Yaw)
 end
 
 function Controller:ResetRecoil()
-    Controller.Current = Vector2.new()
-    Controller.Target = Vector2.new()
+    Controller.Offset = Vector2.new()
 end
 
 -- FIELD OF VIEW
