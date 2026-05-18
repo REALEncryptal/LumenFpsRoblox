@@ -103,7 +103,7 @@ function ToolManager.new( Character:Model )
                 if ToolObject.Equipped then
                     self:UnequipTool(ToolName)
                 else
-                    self:EquipTool(ToolName)
+                    task.spawn(function() self:EquipTool(ToolName) end)
                 end
             end
 
@@ -176,12 +176,27 @@ function ToolManager:RemoveTool( ToolName:string )
     self.Tools[ToolName] = nil
 end
 
+-- Yields while another tool is mid-unequip so the new viewmodel doesn't
+-- pop in on top of the old one. ToolBase.Unequip flips Unequipping to
+-- false at the end of its SwapTime task.delay; until then the old tool's
+-- Offsets.Hidden is still CFrame.new() (visible).
 function ToolManager:EquipTool( ToolName:string )
     local ToolObject = self.Tools[ToolName]
     if not ToolObject then return end
 
     if self.EquippedTool then
         self:UnequipTool(self.EquippedTool, ToolObject)
+    end
+
+    -- Drain any in-flight unequip before making the new viewmodel visible.
+    -- Covers both the direct swap path above and the UnequipTool fall-back
+    -- to "Fists" path (which already cleared self.EquippedTool to nil).
+    for _, Other in pairs(self.Tools) do
+        if Other ~= ToolObject then
+            while Other.Unequipping do
+                task.wait()
+            end
+        end
     end
 
     if ToolName == "Fists" then
@@ -207,7 +222,9 @@ function ToolManager:UnequipTool( ToolName:string, NextTool )
     self.EquippedTool = nil
 
     if not NextTool then
-        self:EquipTool("Fists")
+        -- Spawn so the recursive equip can yield on Other.Unequipping
+        -- (this tool we just kicked off above) without blocking the caller.
+        task.spawn(function() self:EquipTool("Fists") end)
     end
 end
 
