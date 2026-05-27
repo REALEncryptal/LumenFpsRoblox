@@ -40,15 +40,33 @@ local function NeutraliseHumanoid(Humanoid: Humanoid)
     Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 end
 
+-- Roblox auto-sets HumanoidRootPart.CanCollide = true after the Humanoid
+-- loads, and accessories/clothing can stream in with CanCollide = true. Watch
+-- each part and force it back to false so the rig never participates in
+-- physics contact (which would push back through the Motor6D onto the
+-- Collider assembly).
+local function EnforceInert(Part: BasePart)
+    Part.CanCollide = false
+    Part.CanQuery = false
+    Part.CanTouch = false
+    Part.Massless = true
+
+    Part:GetPropertyChangedSignal("CanCollide"):Connect(function()
+        if Part.CanCollide then Part.CanCollide = false end
+    end)
+end
+
 local function NeutraliseParts(Rig: Model)
     for _, D in Rig:GetDescendants() do
         if D:IsA("BasePart") then
-            D.CanCollide = false
-            D.CanQuery = false
-            D.CanTouch = false
-            D.Massless = true
+            EnforceInert(D)
         end
     end
+    Rig.DescendantAdded:Connect(function(D)
+        if D:IsA("BasePart") then
+            EnforceInert(D)
+        end
+    end)
 end
 
 local function AttachVisualRig(Player: Player, Character: Model)
@@ -81,7 +99,7 @@ local function AttachVisualRig(Player: Player, Character: Model)
 
     NeutraliseParts(Rig)
 
-    local Root = Rig.PrimaryPart or Rig:FindFirstChild("HumanoidRootPart") :: BasePart?
+    local Root = Rig:FindFirstChild("HumanoidRootPart") :: BasePart?
     if not Root then
         Rig:Destroy()
         return
@@ -92,7 +110,7 @@ local function AttachVisualRig(Player: Player, Character: Model)
     Joint.Name = "VisualWeld"
     Joint.Part0 = Collider
     Joint.Part1 = Root
-    Joint.C0 = CFrame.new(0, 2, 0)
+    Joint.C0 = CFrame.new(0, 0.5, 0)
     Joint.Parent = Collider
 
     Rig.Parent = Character
