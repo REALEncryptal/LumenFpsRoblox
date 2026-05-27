@@ -131,6 +131,60 @@ function Controller:Cast(
     end
 end
 
+-- Hitscan dispatch — Hindsight 0.2.0's single-frame ray resolver. Mirrors
+-- :Cast's wire format so the server-side validation (origin proximity +
+-- timestamp latency) is shared. Local World:hitscan runs the same ray on the
+-- client world; only `onImpact` fires there (the client world has no rollback
+-- store, so `onIntersection` is server-only by design).
+--
+-- Optional `Modifier` carries per-cast overrides (Range, Damage). The server
+-- clamps both to defensive bounds before forwarding to Hindsight — the values
+-- are useful for melee tools that share one Punch definition but want
+-- per-tool reach/damage tuning. Damage rides on Hindsight's `extra` table;
+-- the Punch projectile reads `Ctx.extra.Damage` on intersection.
+--
+-- ProjectileDebugController:RecordShot is intentionally skipped here — its
+-- forward-simulator is keyed on velocity/gravity/lifetime, which are ignored
+-- on the hitscan path. A dedicated RecordHitscan can be added later if the
+-- debug overlay needs to draw single-segment rays.
+function Controller:Hitscan(
+    ProjectileType: string,
+    Origin: Vector3,
+    Direction: Vector3,
+    Modifier: { Range: number?, Damage: number? }?
+)
+    local Timestamp = workspace:GetServerTimeNow()
+    local Range = Modifier and Modifier.Range
+    local Damage = Modifier and Modifier.Damage
+
+    Event:FireServer("HitscanProjectile", {
+        Type = ProjectileType,
+        Origin = Origin,
+        Direction = Direction,
+        Timestamp = Timestamp,
+        Range = Range,
+        Damage = Damage,
+    })
+
+    if World then
+        local LocalModifier = nil
+        if Range or Damage then
+            LocalModifier = {
+                range = Range,
+                extra = if Damage then { Damage = Damage } else nil,
+            }
+        end
+        World:hitscan({
+            caster = LocalPlayer,
+            type = ProjectileType,
+            origin = Origin,
+            direction = Direction,
+            timestamp = Timestamp,
+            modifier = LocalModifier,
+        })
+    end
+end
+
 -- Cooked-fuse throw — used by ThrowableSpawn for grenades. CookElapsed is the
 -- time the player held the pin out; the fuse on the server gets reduced to
 -- (GRENADE_FUSE - CookElapsed).

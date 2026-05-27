@@ -12,6 +12,7 @@ local Types = require(script.Parent.Types)
 local Defaults = require(script.Parent.Defaults)
 local Definitions = require(script.Parent.Definitions)
 local Dispatcher = require(script.Parent.Dispatcher)
+local Hitscan = require(script.Parent.Hitscan)
 local Rollback = require(script.Parent.Rollback)
 local Simulation = require(script.Parent.Simulation)
 
@@ -373,6 +374,9 @@ type WorldSelf = {
 	_dispatcher: Dispatcher.Dispatcher,
 	_definitions: Definitions.Definitions,
 	_mainRollback: Rollback.Rollback,
+	_isServer: boolean,
+	_terrain: Terrain,
+	_hitscanConfig: Hitscan.Config,
 	rollback: Types.Rollback,
 }
 
@@ -440,6 +444,13 @@ function World.new(config: Types.WorldConfig): World
 		_dispatcher = dispatcher,
 		_definitions = definitions,
 		_mainRollback = mainRollback,
+		_isServer = RunService:IsServer(),
+		_terrain = workspace.Terrain,
+		_hitscanConfig = {
+			defaultRaycastFilter = payload.defaultRaycastFilter,
+			penetration = payload.penetration,
+			excludeContainers = payload.excludeContainers,
+		},
 		rollback = newRollbackProxy(mainRollback, dispatcher, rollbackConfig.rigs),
 	}
 	return (setmetatable(self, World) :: any) :: World
@@ -460,6 +471,38 @@ end
 ]=]
 function World.cast(self: World, options: Types.CastOptions)
 	self._dispatcher:dispatch(options)
+end
+
+--[=[
+	@within World
+	@method hitscan
+	@param options CastOptions
+
+	Resolves a single-frame ray. Server-side, queries the rollback store for
+	lag-compensated character hits using `options.timestamp`; the projectile
+	loop is bypassed entirely. Client-side, only world geometry is tested —
+	the client World has no rollback path, so `onIntersection` will not fire.
+
+	Reuses the same [`ProjectileDefinition`](Hindsight#ProjectileDefinition) as
+	[`cast`](#cast). Hitscan-relevant fields: `range`, `power`, `angle`, `loss`,
+	`collaterals`, `raycastFilter`, `filter`, `onImpact`, `onIntersection`.
+	Projectile-only fields (`velocity`, `gravity`, `lifetime`) are ignored.
+
+	`onDestroyed` is **not** fired by the hitscan path — the terminal callback
+	is the last `onImpact` or `onIntersection`. Out-of-range scans fire no
+	callback at all.
+
+	Penetration and ricochet behave identically to the projectile path,
+	bounded by `MAX_ITERATIONS` (16) to prevent runaway bounces.
+]=]
+function World.hitscan(self: World, options: Types.CastOptions)
+	Hitscan.resolve({
+		definitions = self._definitions,
+		rollback = self._mainRollback,
+		config = self._hitscanConfig,
+		terrain = self._terrain,
+		isServer = self._isServer,
+	}, options)
 end
 
 --[=[

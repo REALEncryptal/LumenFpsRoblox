@@ -27,6 +27,12 @@ local MAX_HORIZONTAL_ORIGIN_DRIFT = 5
 local MAX_VERTICAL_ORIGIN_DRIFT = 20
 local GRENADE_FUSE = 5
 
+-- Defensive caps on client-supplied per-cast overrides. The Punch definition's
+-- defaults still apply when the client doesn't send these; these only bound
+-- how far a tampered client can crank them.
+local MAX_HITSCAN_RANGE = 64
+local MAX_HITSCAN_DAMAGE = 200
+
 local function EnsureFolder(Name: string): Folder
     local Existing = workspace:FindFirstChild(Name)
     if Existing and Existing:IsA("Folder") then return Existing end
@@ -76,16 +82,32 @@ function Controller:Init()
     Event:Listen("ThrowProjectile", function(Player, Payload)
         Controller:HandleThrow(Player, Payload)
     end)
+
+    Event:Listen("HitscanProjectile", function(Player, Payload)
+        Controller:HandleHitscan(Player, Payload)
+    end)
 end
 
 -- Validate that the supplied origin sits within reasonable bounds of the
--- player's head — the bullet origin a legit client would have used.
+-- player's character — the bullet origin a legit client would have used. The
+-- project's custom rig has no standard "Head" part; the canonical anchor is
+-- the `Collider` BasePart owned by MovementController. Fall back to Head /
+-- PrimaryPart so this still works on stock Roblox rigs.
+local function GetCharacterAnchor(Character: Model): BasePart?
+    local Collider = Character:FindFirstChild("Collider")
+    if Collider and Collider:IsA("BasePart") then return Collider end
+    local Head = Character:FindFirstChild("Head")
+    if Head and Head:IsA("BasePart") then return Head end
+    if Character.PrimaryPart then return Character.PrimaryPart end
+    return nil
+end
+
 local function ValidateOrigin(Player: Player, Origin: Vector3): boolean
     local Character = Player.Character
-    local Head = Character and Character:FindFirstChild("Head")
-    if not Head or not Head:IsA("BasePart") then return false end
+    local Anchor = Character and GetCharacterAnchor(Character)
+    if not Anchor then return false end
 
-    local Offset = Origin - Head.Position
+    local Offset = Origin - Anchor.Position
     local Horizontal = Vector3.new(Offset.X, 0, Offset.Z).Magnitude
     local Vertical = math.abs(Offset.Y)
     return Horizontal <= MAX_HORIZONTAL_ORIGIN_DRIFT and Vertical <= MAX_VERTICAL_ORIGIN_DRIFT
@@ -174,6 +196,42 @@ function Controller:HandleThrow(Player: Player, Payload)
         direction = Payload.Direction,
         timestamp = RewindTime,
         modifier = { lifetime = RemainingFuse },
+    })
+end
+
+-- Hindsight 0.2.0 hitscan path. Reuses the same payload validation as the
+-- projectile path — origin within head-proximity, timestamp inside the rewind
+-- window — then resolves the ray on the main thread via World:hitscan instead
+-- of dispatching a stepped projectile. No client broadcast for hitscans yet;
+-- punches don't need a visible tracer on remote screens.
+--
+-- Optional Payload.Range / Payload.Damage are per-cast overrides clamped to
+-- defensive caps and forwarded as a Hindsight modifier — Range overrides the
+-- definition's `range`; Damage rides on `extra` for the projectile's
+-- onIntersection callback to read.
+function Controller:HandleHitscan(Player: Player, Payload)
+    if not ValidatePayload(Player, Payload) then return end
+
+    local RewindOffset = Player:GetNetworkPing() + INTERPOLATION
+    local RewindTime = Payload.Timestamp - RewindOffset
+
+    local Modifier = nil
+    local Range = if typeof(Payload.Range) == "number" then math.clamp(Payload.Range, 0, MAX_HITSCAN_RANGE) else nil
+    local Damage = if typeof(Payload.Damage) == "number" then math.clamp(Payload.Damage, 0, MAX_HITSCAN_DAMAGE) else nil
+    if Range or Damage then
+        Modifier = {
+            range = Range,
+            extra = if Damage then { Damage = Damage } else nil,
+        }
+    end
+
+    World:hitscan({
+        caster = Player,
+        type = Payload.Type,
+        origin = Payload.Origin,
+        direction = Payload.Direction,
+        timestamp = RewindTime,
+        modifier = Modifier,
     })
 end
 

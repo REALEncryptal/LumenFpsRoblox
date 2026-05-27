@@ -15,10 +15,11 @@
                                      Drives the *viewmodel* kick only (visual feedback);
                                      Spring3 ×100s the shove and ToolBase multiplies the
                                      result by 25 for viewmodel rotation.
-        CameraRecoil        number?  — scalar multiplier on per-shot camera kick. Lets a
-                                     weapon dial aim-disturbance up or down without
-                                     changing the per-shot range. Falls back to
-                                     Tool.Data.CameraRecoil, then 1.0.
+        CameraRecoil        number | {n,n}?
+                                     Multiplier on per-shot camera kick. Pass a single
+                                     number for a fixed multiplier, or {Min, Max} to
+                                     roll uniformly in that range every shot. Falls
+                                     back to Tool.Data.CameraRecoil, then 1.0.
         VerticalRecoil      {n,n}?   — {Min, Max} degrees of upward camera pitch per shot.
                                      Rolled uniformly in [Min, Max] every shot, then
                                      multiplied by CameraRecoil and fed into
@@ -147,9 +148,10 @@ function HitscanFire:_DoFire()
     -- per-weapon ranges; YawSign is randomized so bursts spray instead of
     -- drifting one direction; a small lateral Impact-X shove lets the
     -- viewmodel slide with the yaw for visual coherence.
-    local VR, HR = self.VerticalRecoil, self.HorizontalRecoil
-    local Pitch = (VR[1] + math.random() * (VR[2] - VR[1])) * self.CameraRecoil
-    local YawMag = (HR[1] + math.random() * (HR[2] - HR[1])) * self.CameraRecoil
+    local VR, HR, CR = self.VerticalRecoil, self.HorizontalRecoil, self.CameraRecoil
+    local CRMul = if type(CR) == "table" then CR[1] + math.random() * (CR[2] - CR[1]) else CR
+    local Pitch = (VR[1] + math.random() * (VR[2] - VR[1])) * CRMul
+    local YawMag = (HR[1] + math.random() * (HR[2] - HR[1])) * CRMul
     local YawSign = math.random() < 0.5 and -1 or 1
 
     local ImpactSpring = self.Tool.Springs.Impact

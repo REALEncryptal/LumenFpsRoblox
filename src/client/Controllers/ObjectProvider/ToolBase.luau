@@ -54,6 +54,12 @@ function ToolBase.new( ToolFolder: Folder )
     self.Animator = self.Viewmodel:FindFirstChild("Animator", true)
     assert(self.Animator, "ToolBase.New - Animator not found")
 
+    -- Cached so the per-frame update tasks don't pay a FindFirstChild every
+    -- tick, and so the "viewmodel got nuked" guards below can null-check a
+    -- direct reference instead of re-resolving the name.
+    self.CameraPart = self.Viewmodel:FindFirstChild("CameraPart")
+    assert(self.CameraPart, "ToolBase.New - CameraPart not found")
+
     if not self.Data.IsRigged and ToolModel then
         self.Tool = self.Trove:Clone(ToolModel)
         if not self.Tool then return end
@@ -179,6 +185,7 @@ function ToolBase.new( ToolFolder: Folder )
     -- Update viewmodel cframe
     -- Update viewmodel cframe
     self:AddUpdateTask("UpdateViewmodelCFrame", 103, function(DeltaTime: number)
+        if not self:_ViewmodelAlive() then return end
         self.ViewmodelCFrame = CFrame.new()
         self.ViewmodelCFrame *= workspace.CurrentCamera.CFrame
         self.ViewmodelCFrame *= (workspace:GetAttribute("BaseOffset") or self.Offsets.Base)
@@ -202,6 +209,7 @@ function ToolBase.new( ToolFolder: Folder )
 
     -- Set Viewmodel
     self:AddUpdateTask("SetViewmodelCFrame", 104, function(DeltaTime: number)
+        if not self:_ViewmodelAlive() then return end
         self.Viewmodel.PrimaryPart.CFrame = self.ViewmodelCFrame
     end)
 
@@ -212,7 +220,8 @@ function ToolBase.new( ToolFolder: Folder )
     -- Impact stays on the viewmodel (gun-jolt) only; camera kick goes through
     -- CameraController:ApplyRecoil.
     self:AddUpdateTask("UpdateCameraCFrame", 102.5, function(DeltaTime: number)
-        self.CameraCFrame = self.Viewmodel:FindFirstChild("CameraPart").CFrame:ToObjectSpace(self.Viewmodel.PrimaryPart.CFrame)
+        if not self:_ViewmodelAlive() then return end
+        self.CameraCFrame = self.CameraPart.CFrame:ToObjectSpace(self.Viewmodel.PrimaryPart.CFrame)
 
         self.CameraCFrame *= CFrame.Angles(
             math.rad(self.UpdatedSprings.Walk.Y * -2),
@@ -225,6 +234,7 @@ function ToolBase.new( ToolFolder: Folder )
     self:AddUpdateTask("Update", 106, function(DeltaTime: number)
         if not self.Enabled then return end
         if not self.Equipped and not self.Swapping then return end
+        if not self:_ViewmodelAlive() then return end
 
         workspace.CurrentCamera.CFrame *= self.PreviousCameraCFrame and self.PreviousCameraCFrame:Inverse() or CFrame.new()
 
@@ -419,6 +429,19 @@ function ToolBase:Update(DeltaTime: number)
 end
 
 -- UTIL METHODS
+
+-- True when the viewmodel + CameraPart are still parented to the world.
+-- Roblox can destroy the viewmodel from under us when `workspace.CurrentCamera`
+-- is recreated (respawn, CameraType thrash, etc.) — descendants of the old
+-- camera die with it. The per-frame update tasks short-circuit on this so
+-- they don't spam `attempt to index nil with 'CFrame'` until LoadoutController
+-- rebuilds the ToolManager.
+function ToolBase:_ViewmodelAlive(): boolean
+    if not self.Viewmodel or not self.Viewmodel.Parent then return false end
+    if not self.CameraPart or not self.CameraPart.Parent then return false end
+    if not self.Viewmodel.PrimaryPart then return false end
+    return true
+end
 
 function ToolBase:PrintTasks()
     for _, TaskData in pairs(self.SortedUpdateTasks) do

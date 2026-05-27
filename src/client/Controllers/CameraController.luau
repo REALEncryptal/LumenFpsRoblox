@@ -7,7 +7,6 @@ local Controller = {
 
 Controller.Priority = 20
 
--- Punchy kick with smoothed full recovery to aim.
 --
 -- Offset — degrees of pitch/yaw applied on top of mouse-look this frame.
 -- ApplyRecoil shoves Offset by the full per-shot impulse (instant snap-up).

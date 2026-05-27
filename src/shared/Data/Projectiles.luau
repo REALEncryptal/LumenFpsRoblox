@@ -4,6 +4,7 @@
 -- actor require this module independently, which is why callbacks live here
 -- (functions cannot cross actor VM boundaries via the per-cast Modifier).
 
+local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -12,6 +13,28 @@ local Hindsight = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChil
 local IS_SERVER = RunService:IsServer()
 
 local CharactersFolderName = "Characters"
+
+-- Flip to false to silence the per-punch contact markers without otherwise
+-- changing punch behavior. Replicated through normal FE replication so the
+-- caster (and anyone else) can see where the swing landed.
+local DEBUG_PUNCH_MARKERS = true
+
+local function SpawnPunchMarker(Position: Vector3, Color: Color3)
+    local Part = Instance.new("Part")
+    Part.Name = "PunchDebug"
+    Part.Size = Vector3.new(0.5, 0.5, 0.5)
+    Part.Shape = Enum.PartType.Ball
+    Part.Material = Enum.Material.Neon
+    Part.Color = Color
+    Part.Anchored = true
+    Part.CanCollide = false
+    Part.CanQuery = false
+    Part.CanTouch = false
+    Part.CastShadow = false
+    Part.Position = Position
+    Part.Parent = workspace
+    Debris:AddItem(Part, 2)
+end
 
 -- Skip the caster and (later) teammates. Runs on a simulation actor in parallel
 -- context — read-only access only, no Humanoid state inspection.
@@ -103,7 +126,46 @@ local Grenade: Hindsight.ProjectileDefinition = {
     end,
 }
 
+-- Punch hitscan. Resolved by Hindsight 0.2.0's World:hitscan (single-frame,
+-- lag-compensated ray) — velocity/gravity/lifetime are present to satisfy the
+-- ProjectileDefinition shape but are ignored on the hitscan path. `range`
+-- caps the scan distance in studs. `angle = 0` disables ricochet so a missed
+-- punch terminates at the first surface instead of bouncing through 16
+-- iterations. `power = 0` disables penetration — every surface costs at
+-- least `thickness × hardness > 0`, so the first hit always fires onImpact
+-- and stops the scan (melee shouldn't punch through walls).
+local Punch: Hindsight.ProjectileDefinition = {
+    velocity = 0,
+    gravity = Vector3.zero,
+    lifetime = 0,
+    power = 0,
+    angle = 0,
+    loss = 0,
+    range = 8,
+    collaterals = false,
+    filter = DefaultFilter,
+    onImpact = function(Ctx)
+        if not IS_SERVER then return end
+        if DEBUG_PUNCH_MARKERS then
+            SpawnPunchMarker(Ctx.position, Color3.fromRGB(255, 120, 60))
+        end
+    end,
+    onIntersection = function(Ctx)
+        if not IS_SERVER then return end
+        if DEBUG_PUNCH_MARKERS then
+            SpawnPunchMarker(Ctx.position, Color3.fromRGB(80, 255, 120))
+        end
+        local Humanoid = Ctx.character:FindFirstChildOfClass("Humanoid")
+        if Humanoid then
+            local Damage = (Ctx.extra and Ctx.extra.Damage) or 20
+            ApplyDamage(Humanoid, Damage)
+        end
+    end,
+    onDestroyed = function(_Ctx) end,
+}
+
 return {
     Bullet = Bullet,
     Grenade = Grenade,
+    Punch = Punch,
 }

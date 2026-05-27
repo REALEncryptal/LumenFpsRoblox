@@ -9,12 +9,12 @@ local HULL_SIZE = Vector3.new(2, 4.5, 2) -- 32 × 32 × 72 hu
 local STEP_HEIGHT = 1.125 -- sv_stepsize = 18 hu
 local GROUND_SNAP_DISTANCE = 0.125 -- CategorizePosition trace = 2 hu
 local EYE_OFFSET_FROM_TOP = 0.5 -- VEC_VIEW = 64 hu (8 hu below top)
-local MIN_GROUND_NORMAL_Y = 0.7 -- Source's walkable threshold (≈45.57°)
+local MIN_GROUND_NORMAL_Y = 0.8 -- Source's walkable threshold (≈45.57°)
 
 local SV_ACCELERATE = 10
 local SV_AIRACCELERATE = 10
-local SV_FRICTION = 4
-local SV_STOPSPEED = 6.25 -- 100 hu/s
+local SV_FRICTION = 6
+local SV_STOPSPEED = 10
 local AIR_SPEED_CAP = 1.875 -- 30 hu/s
 
 local MAX_GROUND_SPEED = 20 -- sv_maxspeed = 320 hu/s

@@ -95,7 +95,9 @@ export type DestroyedCtx = {
 
 --> A single ammo type. Modifier values override the numeric/data fields per
 --> cast; callbacks and `filter` are definition-only because functions cannot
---> safely cross actor VM boundaries.
+--> safely cross actor VM boundaries. `range` is consulted only by the hitscan
+--> path; `velocity` / `gravity` / `lifetime` are consulted only by the
+--> projectile path.
 export type ProjectileDefinition = {
 	velocity: number,
 	gravity: Vector3,
@@ -103,6 +105,7 @@ export type ProjectileDefinition = {
 	power: number,
 	angle: number,
 	loss: number,
+	range: number?,
 	collaterals: boolean?,
 	raycastFilter: RaycastParams?,
 	filter: Filter?,
@@ -121,6 +124,7 @@ export type ProjectileModifier = {
 	power: number?,
 	angle: number?,
 	loss: number?,
+	range: number?,
 	collaterals: boolean?,
 	raycastFilter: RaycastParams?,
 	extra: Extra?,
@@ -187,6 +191,7 @@ export type Rollback = {
 
 export type World = {
 	cast: (self: World, options: CastOptions) -> (),
+	hitscan: (self: World, options: CastOptions) -> (),
 	rollback: Rollback,
 	destroy: (self: World) -> (),
 }

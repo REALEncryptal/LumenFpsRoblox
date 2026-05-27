@@ -171,18 +171,19 @@ local World = require(script.World)
 --[=[
 	@interface ProjectileDefinition
 	@within Hindsight
-	.velocity number -- Initial speed in studs/second.
-	.gravity Vector3 -- World-space gravity vector applied every step.
-	.lifetime number -- Seconds before the projectile self-destructs.
+	.velocity number -- Initial speed in studs/second. Projectile path only.
+	.gravity Vector3 -- World-space gravity vector applied every step. Projectile path only.
+	.lifetime number -- Seconds before the projectile self-destructs. Projectile path only.
 	.power number -- Penetration budget. Spent against material hardness when crossing surfaces.
 	.angle number -- Maximum impact angle (degrees) that allows a ricochet. `360` always bounces; `0` never does.
 	.loss number -- Speed lost per ricochet.
+	.range number? -- Maximum scan distance in studs for the hitscan path. Ignored by [`World:cast`](World#cast). Defaults to `1024`.
 	.collaterals boolean? -- If true, continues through players instead of stopping on the first intersection.
 	.raycastFilter RaycastParams? -- Optional `RaycastParams` overriding `World.defaultRaycastFilter`.
 	.filter Filter? -- Per-character skip predicate. Parallel-safe.
 	.onImpact ((ctx: ImpactCtx) -> ())? -- World-geometry hit callback.
 	.onIntersection ((ctx: IntersectionCtx) -> ())? -- Captured-character intersection callback.
-	.onDestroyed ((ctx: DestroyedCtx) -> ())? -- Expiration callback.
+	.onDestroyed ((ctx: DestroyedCtx) -> ())? -- Expiration callback. Projectile path only — never fired by [`World:hitscan`](World#hitscan).
 
 	A single ammo type. Lives in the [`WorldConfig.definitionsModule`](#WorldConfig).
 	Modifier values override the numeric/data fields per cast; callbacks and
@@ -199,6 +200,7 @@ local World = require(script.World)
 	.power number?
 	.angle number?
 	.loss number?
+	.range number?
 	.collaterals boolean?
 	.raycastFilter RaycastParams?
 	.extra Extra?
