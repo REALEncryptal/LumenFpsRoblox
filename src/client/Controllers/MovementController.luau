@@ -5,7 +5,7 @@ local Controller = {
 
 -- Exact Source / HL2 / HL:DM values from gamemovement.cpp.
 -- Conversion: 1 stud = 16 Hammer units.
-local HULL_SIZE = Vector3.new(2, 4.5, 2) -- 32 × 32 × 72 hu
+local HULL_SIZE = Vector3.new(2, 5, 2)
 local STEP_HEIGHT = 1.125 -- sv_stepsize = 18 hu
 local GROUND_SNAP_DISTANCE = 0.125 -- CategorizePosition trace = 2 hu
 local EYE_OFFSET_FROM_TOP = 0.5 -- VEC_VIEW = 64 hu (8 hu below top)

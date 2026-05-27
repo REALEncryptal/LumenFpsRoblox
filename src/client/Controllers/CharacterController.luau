@@ -27,12 +27,17 @@ end
 
 function Controller.Signals.Update(DeltaTime: number)
     if not Controller.GetCharacter() then return end
-    
+
     Controller._WasGroundedInternal = Controller._GroundedInternal
     Controller._GroundedInternal = Controller.IsGrounded()
+
+    -- MovementController's collide-and-slide projects velocity onto the floor
+    -- on the landing frame, zeroing Y before we get here. Threshold against the
+    -- previous frame's Y — still mid-air, still the actual fall speed.
+    local PreviousY = Controller._VelocityInternal.Y
     Controller._VelocityInternal = Controller.GetVelocity()
 
-    if Controller._GroundedInternal and not Controller._WasGroundedInternal and Controller._VelocityInternal.Y < -2 then
+    if Controller._GroundedInternal and not Controller._WasGroundedInternal and PreviousY < -2 then
         Controller.OnImpact:Fire()
     end
 end
